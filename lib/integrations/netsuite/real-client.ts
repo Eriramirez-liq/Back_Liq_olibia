@@ -83,7 +83,7 @@ export class RealNetsuiteClient implements NetsuiteClient {
       locationId: process.env.NETSUITE_LOCATION_ID ?? null,
       itemId: process.env.NETSUITE_ITEM_ID ?? "488",
       quantity: Number(process.env.NETSUITE_DEFAULT_QUANTITY ?? "1"),
-      departmentId: process.env.NETSUITE_DEPARTMENT_ID ?? "129",
+      departmentId: process.env.NETSUITE_DEPARTMENT_ID ?? "131",
       categoriaProveedorId: process.env.NETSUITE_CATEGORIA_PROVEEDOR_ID ?? "27",
     }
   }

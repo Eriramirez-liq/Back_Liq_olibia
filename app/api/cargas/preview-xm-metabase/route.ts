@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { ejecutarCardMetabase, obtenerParametrosCard, MetabaseError } from "@/lib/integrations/metabase"
+import { ejecutarCardMetabase, MetabaseError } from "@/lib/integrations/metabase"
 import { mapearFilasXMMetabase } from "@/lib/parsers/xm-metabase"
 import { esPeriodoPermitido } from "@/lib/utils/periodos"
 
@@ -51,30 +51,21 @@ export async function POST(request: NextRequest) {
   const fechaInicio  = `${anio}-${mm}-01`
   const fechaFin     = `${anio}-${mm}-${String(ultimoDia).padStart(2, "0")}`
 
-  // Parametros de la card. Las FECHAS ya funcionaban con este armado manual
-  // (date/single + variable) — se dejan intactas. codigo_sic se omite para
-  // traer todas las fronteras.
+  // Parametros de la card. Los tres son VARIABLES (template-tags), por eso el
+  // target es ["variable", ...] y NO ["dimension", ...] (field filter):
+  //   - fecha_inicio / fecha_fin: variables de fecha  -> type "date/single".
+  //   - version: variable de texto                    -> type "category".
+  // Notas de por que este es el armado correcto:
+  //   * con type "string/=" Metabase ignoraba el parametro de version y la card
+  //     caia en su valor por defecto (traia Tx2 en vez de TxF);
+  //   * con el objeto de la metadata de la card (target "dimension") Metabase
+  //     respondia 500: "Card 76099 does not have a template tag named Version".
+  // codigo_sic se omite a proposito para traer todas las fronteras.
   const parameters: Array<Record<string, unknown>> = [
     { type: "date/single", target: ["variable", ["template-tag", "fecha_inicio"]], value: fechaInicio },
     { type: "date/single", target: ["variable", ["template-tag", "fecha_fin"]],    value: fechaFin },
+    { type: "category",    target: ["variable", ["template-tag", "version"]],      value: "TxF" },
   ]
-
-  // VERSION: el armado manual con type "string/=" era ignorado por Metabase y
-  // la card caia en su default (Tx2). Se lee la definicion REAL del parametro
-  // de la card y se reusa su id/type/target exactos, inyectando solo el value,
-  // para que Metabase lo matchee por id y aplique version=TxF. Si no se puede
-  // leer la metadata, se cae a un armado con type "category" (texto).
-  try {
-    const cardParams  = await obtenerParametrosCard(METABASE_CARD_ID)
-    const versionParam = cardParams.find(p => p.slug === "version")
-    if (versionParam) {
-      parameters.push({ ...versionParam, value: "TxF" } as Record<string, unknown>)
-    } else {
-      parameters.push({ type: "category", target: ["variable", ["template-tag", "version"]], value: "TxF" })
-    }
-  } catch {
-    parameters.push({ type: "category", target: ["variable", ["template-tag", "version"]], value: "TxF" })
-  }
 
   let resultado
   try {

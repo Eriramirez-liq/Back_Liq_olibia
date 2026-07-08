@@ -81,24 +81,30 @@ export async function ejecutarConciliacion(
     throw new Error(`No existe el periodo ${periodoStr}. Cargá al menos una fuente primero.`)
   }
 
-  // 2. Resolver OR opcional (mapeamos codigo para filtrar Facturacion que usa texto)
-  let orFilter: { sdl?: { or_id: string }; facturacion?: { operador_red: string } } = {}
+  // 2. Resolver OR opcional. IMPORTANTE: SDL se filtra por or_id (relacional,
+  //    confiable). Facturación NO se filtra por operador_red en el query, porque
+  //    ese campo es texto libre de Metabase (nombre/etiqueta) que NO coincide con
+  //    el código del OR — filtrar por él dejaba fronteras fuera y las reportaba
+  //    como "no en Facturación". El cruce con Facturación se hace por
+  //    codigo_frontera; el OR solo acota el UNIVERSO (ver universoOR más abajo).
+  //    Mismo criterio que la conciliación TC1 (ver conciliacion-tc1.ts).
+  let orFilter: { sdl?: { or_id: string } } = {}
+  let orCodigo: string | null = null
   if (orId) {
     const or = await db.configuracionOR.findUnique({
       where: { id: orId },
       select: { codigo: true },
     })
     if (!or) throw new Error(`OR ${orId} no encontrado.`)
-    orFilter = {
-      sdl:         { or_id: orId },
-      facturacion: { operador_red: or.codigo },
-    }
+    orCodigo = or.codigo
+    orFilter = { sdl: { or_id: orId } }
   }
 
-  // 3. Cargar las tres fuentes en paralelo
+  // 3. Cargar las tres fuentes en paralelo. Facturación se carga COMPLETA del
+  //    período (el cruce con SDL/XM es por codigo_frontera).
   const [facturacion, xm, sdl] = await Promise.all([
     db.registroFacturacion.findMany({
-      where: { periodo_id: periodoStr, ...(orFilter.facturacion ?? {}) },
+      where: { periodo_id: periodoStr },
     }),
     db.registroXM.findMany({
       where: { periodo_id: periodoStr },
@@ -132,6 +138,26 @@ export async function ejecutarConciliacion(
 
   const xmByFrontera  = new Map(xm.map(r  => [normKey(r.codigo_frontera), r]))
   const sdlByFrontera = new Map(sdl.map(r => [normKey(r.codigo_frontera), r]))
+
+  // Universo de fronteras del OR (solo cuando se filtra por OR). Se construye
+  // por clave BASE, uniendo:
+  //   - SDL del OR (ya viene filtrado por or_id).
+  //   - Facturación cuyo operador_red coincide con el código del OR (comparación
+  //     normalizada; puede no coincidir por ser texto libre, por eso NO se usa
+  //     como filtro del query, solo para SUMAR al universo).
+  // Cuando NO hay OR (corrida completa), universoOR = null → se procesa todo.
+  const universoOR: Set<string> | null = orId ? new Set<string>() : null
+  if (universoOR) {
+    for (const s of sdl) universoOR.add(claveBase(normKey(s.codigo_frontera)))
+    for (const f of facturacion) {
+      if (normKey(f.operador_red) === normKey(orCodigo)) {
+        universoOR.add(claveBase(normKey(f.codigo_frontera)))
+      }
+    }
+  }
+  // ¿La frontera pertenece al universo a reconciliar? (siempre true si no hay OR)
+  const enUniverso = (codigo: string): boolean =>
+    universoOR === null || universoOR.has(claveBase(normKey(codigo)))
 
   // ── Colapsar fronteras "_N" de Facturación en su base ──────────────────────
   // El OR (SDL) y XM solo manejan la frontera base; las "_N" (FRT11550_8, _2…)
@@ -239,6 +265,9 @@ export async function ejecutarConciliacion(
 
   for (const f of facturacionColapsada) {
     const fKey   = normKey(f.codigo_frontera)
+    // Facturación se carga completa; si se filtra por OR, procesar solo las
+    // fronteras de su universo (el resto son de otros operadores).
+    if (!enUniverso(f.codigo_frontera)) continue
     if (fronterasVistas.has(fKey)) continue
     fronterasVistas.add(fKey)
     const xmRec  = xmByFrontera.get(fKey)
@@ -453,17 +482,19 @@ export async function ejecutarConciliacion(
       huerfanasByKey.set(k, { codigo: s.codigo_frontera, sdlRec: s, or_id: s.or_id })
     }
   }
-  if (!orId) {
-    // Solo procesar huerfanas XM si no estamos filtrando por OR.
-    for (const x of xm) {
-      const k = normKey(x.codigo_frontera)
-      if (facFronteras.has(k)) continue
-      const existing = huerfanasByKey.get(k)
-      if (existing) {
-        existing.xmRec = x
-      } else {
-        huerfanasByKey.set(k, { codigo: x.codigo_frontera, xmRec: x })
-      }
+  for (const x of xm) {
+    const k = normKey(x.codigo_frontera)
+    if (facFronteras.has(k)) continue
+    const existing = huerfanasByKey.get(k)
+    if (existing) {
+      // Completar el dato de XM en huérfanas ya detectadas (p. ej. de SDL del OR).
+      // Esto corre SIEMPRE: así una frontera que sí está en XM no se reporta como
+      // "falta XM". XM no trae or_id, por eso solo se completa, no se filtra.
+      existing.xmRec = x
+    } else if (!orId) {
+      // Crear huérfanas XM-only solo en corrida completa (sin OR): una frontera
+      // solo en XM no pertenece a ningún OR en particular.
+      huerfanasByKey.set(k, { codigo: x.codigo_frontera, xmRec: x })
     }
   }
 
@@ -508,9 +539,12 @@ export async function ejecutarConciliacion(
   // (no por or_id) porque ResultadoConciliacion puede tener or_id=null cuando
   // la frontera no tuvo match en SDL — si filtraramos por or_id, esas filas
   // sobrevivirian al DELETE y luego romperian el @@unique al re-insertar.
+  // Solo las fronteras del universo reconciliado: si se filtra por OR, Facturación
+  // se cargó completa, así que hay que EXCLUIR las de otros operadores para no
+  // borrar sus resultados. Las huérfanas ya vienen acotadas al OR (SDL por or_id).
   const fronterasACincoliar = [
-    ...facturacion.map(f => f.codigo_frontera),          // crudos (limpia _N de corridas previas)
-    ...facturacionColapsada.map(f => f.codigo_frontera), // bases colapsadas (lo que se re-inserta)
+    ...facturacion.map(f => f.codigo_frontera).filter(enUniverso),          // crudos (limpia _N de corridas previas)
+    ...facturacionColapsada.map(f => f.codigo_frontera).filter(enUniverso), // bases colapsadas (lo que se re-inserta)
     ...Array.from(huerfanasByKey.values()).map(h => h.codigo),
   ]
   const whereDerivados = {

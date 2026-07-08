@@ -74,13 +74,12 @@ export function mapearFilasXMMetabase(
     return { filas, alertas, erroresCriticos }
   }
 
-  // Agregar por SIC. La card trae varias filas por frontera (una por
-  // combinacion de contrato/agente comercial); nos quedamos solo con las del
-  // agente que importa = BIAC y SUMAMOS todas sus filas por frontera. La card,
-  // filtrada por un SIC, agrega server-side; sin filtro devuelve las filas
-  // crudas, asi que hay que sumarlas para reconstruir el total de la frontera.
+  // Agregar por SIC. La card (versión TxF) ya trae el total AENC sumado por
+  // frontera: UNA fila por SIC con el agente que importa = BIAC. El valor se
+  // toma tal cual viene, NO se suma nada. Si apareciera más de una fila por
+  // frontera es una anomalía del dato: se conserva la primera y se alerta.
   let omitidasNoBiac = 0
-  let filasSumadas   = 0
+  let duplicadasSic  = 0
   const porSic = new Map<string, { nombre: string | null; total: number }>()
   for (const r of rows) {
     if (colImporta) {
@@ -89,21 +88,16 @@ export function mapearFilasXMMetabase(
     }
     const sic = String(r[colSic!] ?? "").trim()
     if (!sic) continue
+    // Una sola fila por frontera (el dato ya viene sumado); si se repite, se
+    // conserva la primera y se reporta para revisión.
+    if (porSic.has(sic)) { duplicadasSic++; continue }
     const energia = toNum(r[colEnergia!]) ?? 0
     const nombre = colNombre ? (String(r[colNombre] ?? "").trim() || null) : null
-    const existente = porSic.get(sic)
-    if (existente) {
-      // Sumar la energia de cada fila BIAC de la misma frontera.
-      existente.total += energia
-      existente.nombre ??= nombre
-      filasSumadas++
-    } else {
-      porSic.set(sic, { nombre, total: energia })
-    }
+    porSic.set(sic, { nombre, total: energia })
   }
-  if (filasSumadas > 0) {
+  if (duplicadasSic > 0) {
     alertas.push(
-      `${filasSumadas} filas BIAC adicionales fueron sumadas a su frontera (multiples contratos/agentes por SIC).`,
+      `${duplicadasSic} filas repetidas por frontera fueron ignoradas (se toma una; revisá el dato en Metabase).`,
     )
   }
 

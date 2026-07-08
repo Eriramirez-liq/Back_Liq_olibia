@@ -4,8 +4,10 @@ import type { FilaXM, ResultadoParser } from "@/lib/parsers/types"
  * Mapea las filas que devuelve la card de Metabase "aenc-xm-final" (76099) al
  * shape FilaXM. El dato de energia es la columna "total aenc_div_perdidas".
  *
- * La card ya viene filtrada por fecha (mes de consumo) y version=TxF, asi que
- * el periodo se asigna desde el wizard (no se deriva de la fila).
+ * La card se consulta filtrada por fecha (mes de consumo) y version=TxF. Como
+ * defensa (por si el parametro de version de la API no aplicara), aca se vuelve
+ * a filtrar a version TxF leyendo la columna. El periodo se asigna desde el
+ * wizard (no se deriva de la fila).
  */
 
 function normalizarCol(s: string): string {
@@ -62,6 +64,11 @@ export function mapearFilasXMMetabase(
     "importing_commercial_agent_code", "importing_commercial_agent", "importing_agent_code",
     "agente_comercial_que_importa", "agente comercial que importa", "agente_importa",
   )
+  // Version de liquidacion. Solo se toma TxF (final). El filtro por parametro de
+  // la API no siempre se aplica, asi que se filtra tambien aca leyendo la
+  // columna: si no se filtrara, la card devuelve varias versiones por frontera
+  // (TX1/TX2/TXR/TxF...) y se tomaria una version no-final con un valor menor.
+  const colVersion = findCol("version", "version_liquidacion", "tipo_version")
 
   const faltantes: string[] = []
   if (!colSic)     faltantes.push("codigo_sic")
@@ -78,10 +85,16 @@ export function mapearFilasXMMetabase(
   // frontera: UNA fila por SIC con el agente que importa = BIAC. El valor se
   // toma tal cual viene, NO se suma nada. Si apareciera más de una fila por
   // frontera es una anomalía del dato: se conserva la primera y se alerta.
-  let omitidasNoBiac = 0
-  let duplicadasSic  = 0
+  let omitidasNoBiac    = 0
+  let omitidasNoTxF     = 0
+  let duplicadasSic     = 0
   const porSic = new Map<string, { nombre: string | null; total: number }>()
   for (const r of rows) {
+    // Solo la version final TxF (defensa por si el parametro de la API no filtro).
+    if (colVersion) {
+      const version = String(r[colVersion] ?? "").trim().toUpperCase()
+      if (version !== "TXF") { omitidasNoTxF++; continue }
+    }
     if (colImporta) {
       const importa = String(r[colImporta] ?? "").trim().toUpperCase()
       if (importa !== "BIAC") { omitidasNoBiac++; continue }
@@ -99,6 +112,21 @@ export function mapearFilasXMMetabase(
     alertas.push(
       `${duplicadasSic} filas repetidas por frontera fueron ignoradas (se toma una; revisá el dato en Metabase).`,
     )
+  }
+  if (colVersion) {
+    if (porSic.size === 0 && omitidasNoTxF > 0) {
+      // La query no trajo NINGUNA fila TxF: el filtro de version de la card no
+      // aplicó (traería otra versión, p. ej. Tx2). Se corta con error claro en
+      // vez de guardar valores de una version no-final.
+      erroresCriticos.push(
+        `La consulta a Metabase no devolvió filas en versión TxF (se descartaron ${omitidasNoTxF} ` +
+        `de otras versiones). Verificá que el filtro de versión de la card 76099 esté trayendo TxF.`,
+      )
+      return { filas, alertas, erroresCriticos }
+    }
+    if (omitidasNoTxF > 0) {
+      alertas.push(`${omitidasNoTxF} filas de versiones distintas de TxF fueron descartadas.`)
+    }
   }
 
   if (colImporta) {

@@ -51,46 +51,29 @@ export async function POST(request: NextRequest) {
   const fechaInicio  = `${anio}-${mm}-01`
   const fechaFin     = `${anio}-${mm}-${String(ultimoDia).padStart(2, "0")}`
 
-  // Valores a inyectar en los template-tags de la card (por slug).
-  // codigo_sic se omite a proposito para traer todas las fronteras.
-  const valoresPorSlug: Record<string, unknown> = {
-    fecha_inicio: fechaInicio,
-    fecha_fin:    fechaFin,
-    version:      "TxF",
-  }
+  // Parametros de la card. Las FECHAS ya funcionaban con este armado manual
+  // (date/single + variable) — se dejan intactas. codigo_sic se omite para
+  // traer todas las fronteras.
+  const parameters: Array<Record<string, unknown>> = [
+    { type: "date/single", target: ["variable", ["template-tag", "fecha_inicio"]], value: fechaInicio },
+    { type: "date/single", target: ["variable", ["template-tag", "fecha_fin"]],    value: fechaFin },
+  ]
 
-  // Se lee la definicion REAL de los parametros de la card y se reusa su
-  // id/type/target exactos, inyectando solo el `value`. Metabase matchea los
-  // parametros por `id`: un parametro armado a mano con el `type` equivocado se
-  // ignora y la card cae en su valor por defecto (p. ej. traia version Tx2 en
-  // vez de TxF). Reusar el objeto real garantiza que el filtro se aplique.
-  let parameters: Array<Record<string, unknown>>
+  // VERSION: el armado manual con type "string/=" era ignorado por Metabase y
+  // la card caia en su default (Tx2). Se lee la definicion REAL del parametro
+  // de la card y se reusa su id/type/target exactos, inyectando solo el value,
+  // para que Metabase lo matchee por id y aplique version=TxF. Si no se puede
+  // leer la metadata, se cae a un armado con type "category" (texto).
   try {
     const cardParams  = await obtenerParametrosCard(METABASE_CARD_ID)
-    const encontrados = new Set<string>()
-    parameters = cardParams
-      .filter(p => typeof p.slug === "string" && p.slug in valoresPorSlug)
-      .map(p => {
-        encontrados.add(p.slug as string)
-        return { ...p, value: valoresPorSlug[p.slug as string] } as Record<string, unknown>
-      })
-    // Fallback por si algun slug no vino en la metadata de la card.
-    for (const [slug, value] of Object.entries(valoresPorSlug)) {
-      if (!encontrados.has(slug)) {
-        parameters.push({
-          type:   slug === "version" ? "category" : "date/single",
-          target: ["variable", ["template-tag", slug]],
-          value,
-        })
-      }
+    const versionParam = cardParams.find(p => p.slug === "version")
+    if (versionParam) {
+      parameters.push({ ...versionParam, value: "TxF" } as Record<string, unknown>)
+    } else {
+      parameters.push({ type: "category", target: ["variable", ["template-tag", "version"]], value: "TxF" })
     }
   } catch {
-    // Si falla la lectura de metadata, se cae al armado manual.
-    parameters = [
-      { type: "date/single", target: ["variable", ["template-tag", "fecha_inicio"]], value: fechaInicio },
-      { type: "date/single", target: ["variable", ["template-tag", "fecha_fin"]],    value: fechaFin },
-      { type: "category",    target: ["variable", ["template-tag", "version"]],      value: "TxF" },
-    ]
+    parameters.push({ type: "category", target: ["variable", ["template-tag", "version"]], value: "TxF" })
   }
 
   let resultado

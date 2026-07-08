@@ -75,10 +75,12 @@ export function mapearFilasXMMetabase(
   }
 
   // Agregar por SIC. La card trae varias filas por frontera (una por
-  // combinacion de agente comercial); nos quedamos solo con las del agente
-  // que importa = BIAC y tomamos una sola fila por frontera.
+  // combinacion de contrato/agente comercial); nos quedamos solo con las del
+  // agente que importa = BIAC y SUMAMOS todas sus filas por frontera. La card,
+  // filtrada por un SIC, agrega server-side; sin filtro devuelve las filas
+  // crudas, asi que hay que sumarlas para reconstruir el total de la frontera.
   let omitidasNoBiac = 0
-  let duplicadasSic  = 0
+  let filasSumadas   = 0
   const porSic = new Map<string, { nombre: string | null; total: number }>()
   for (const r of rows) {
     if (colImporta) {
@@ -87,15 +89,21 @@ export function mapearFilasXMMetabase(
     }
     const sic = String(r[colSic!] ?? "").trim()
     if (!sic) continue
-    // Una sola fila por frontera: si ya existe, se conserva la primera.
-    if (porSic.has(sic)) { duplicadasSic++; continue }
     const energia = toNum(r[colEnergia!]) ?? 0
     const nombre = colNombre ? (String(r[colNombre] ?? "").trim() || null) : null
-    porSic.set(sic, { nombre, total: energia })
+    const existente = porSic.get(sic)
+    if (existente) {
+      // Sumar la energia de cada fila BIAC de la misma frontera.
+      existente.total += energia
+      existente.nombre ??= nombre
+      filasSumadas++
+    } else {
+      porSic.set(sic, { nombre, total: energia })
+    }
   }
-  if (duplicadasSic > 0) {
+  if (filasSumadas > 0) {
     alertas.push(
-      `${duplicadasSic} filas BIAC adicionales por frontera repetida fueron ignoradas (se toma una sola).`,
+      `${filasSumadas} filas BIAC adicionales fueron sumadas a su frontera (multiples contratos/agentes por SIC).`,
     )
   }
 

@@ -54,17 +54,18 @@ export async function POST(request: NextRequest) {
   // Parametros de la card. Los tres son VARIABLES (template-tags), por eso el
   // target es ["variable", ...] y NO ["dimension", ...] (field filter):
   //   - fecha_inicio / fecha_fin: variables de fecha  -> type "date/single".
-  //   - version: variable de texto                    -> type "category".
-  // Notas de por que este es el armado correcto:
-  //   * con type "string/=" Metabase ignoraba el parametro de version y la card
-  //     caia en su valor por defecto (traia Tx2 en vez de TxF);
-  //   * con el objeto de la metadata de la card (target "dimension") Metabase
-  //     respondia 500: "Card 76099 does not have a template tag named Version".
+  //   - version: variable de texto                    -> type "text".
+  // El tag "version" solo acepta types "text" o "string/=" (lo confirmo el
+  // propio Metabase: 'allowed-types: ["string/=", "text"]'). Historial de
+  // intentos fallidos para no repetirlos:
+  //   * "string/=" + variable         -> se ignoraba, la card caia en Tx2;
+  //   * objeto de metadata (dimension)-> 500 "no template tag named Version";
+  //   * "category"                    -> 500 "invalid parameter value type".
   // codigo_sic se omite a proposito para traer todas las fronteras.
   const parameters: Array<Record<string, unknown>> = [
     { type: "date/single", target: ["variable", ["template-tag", "fecha_inicio"]], value: fechaInicio },
     { type: "date/single", target: ["variable", ["template-tag", "fecha_fin"]],    value: fechaFin },
-    { type: "category",    target: ["variable", ["template-tag", "version"]],      value: "TxF" },
+    { type: "text",        target: ["variable", ["template-tag", "version"]],      value: "TxF" },
   ]
 
   let resultado

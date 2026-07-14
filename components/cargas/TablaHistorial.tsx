@@ -145,9 +145,9 @@ export function TablaHistorial() {
                   <td style={tdStyle}>{c.cargado_por.nombre}</td>
                   <td style={{ ...tdStyle, color: "#9ca3af", fontSize: "0.8rem" }}>{fecha}</td>
                   <td style={{ ...tdStyle, textAlign: "right" }}>
-                    {c.tipo_fuente === "SDL" && c.estado === "COMPLETADA" && (
+                    {c.estado === "COMPLETADA" && (
                       <a
-                        href={`/api/cargas/exportar-sdl?cargaId=${c.id}`}
+                        href={`/api/cargas/exportar?cargaId=${c.id}`}
                         style={{
                           display: "inline-flex", alignItems: "center", gap: 5,
                           border: "1px solid #86efac", color: "#15803d", background: "#fff",

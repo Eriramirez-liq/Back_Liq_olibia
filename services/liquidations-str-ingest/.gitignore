@@ -1,0 +1,7 @@
+# Credenciales — nunca commitear
+.env
+.env.local
+
+# Dependencias del dev-server
+dev-server/node_modules/
+node_modules/

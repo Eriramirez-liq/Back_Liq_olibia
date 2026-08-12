@@ -1,0 +1,34 @@
+// ============================================================================
+//  Liquidations — STR Charges
+//  DBML for dbdiagram.io  →  https://dbdiagram.io/d   (paste the whole file)
+//  Schema: liquidations_str   ·   DB: BIA-BI
+//  Flow:  Excel BalanceSTR  →  extraction  →  str_charges  →  NetSuite (PO)
+// ============================================================================
+
+Table liquidations_str.network_operators {
+  id                 text   [pk]
+  code               text   [not null, unique, note: 'AFINIA, AIRE, ...']
+  name               text   [not null]
+  str_column_codes   "text[]" [not null, note: 'BalanceSTR column codes of this operator (AIRE = CSID+CSSD)']
+  netsuite_vendor_id text   [note: 'vendor internalId for the purchase order']
+  active             boolean [not null, default: true]
+  created_at         timestamptz
+  updated_at         timestamptz
+}
+
+Table liquidations_str.str_charges {
+  id                 text    [pk]
+  operator_id        text    [not null, ref: > liquidations_str.network_operators.id]
+  consumption_period text    [not null, note: 'YYYY-MM']
+  invoice_amount     "numeric(18,2)" [not null, default: 0, note: 'factu file (BalSTR01+BalSTR02)']
+  reinvoice_amount   "numeric(18,2)" [not null, default: 0, note: 'refactu file (_Ajuste sheets)']
+  amount_payable     "numeric(18,2)" [note: 'GENERATED = invoice + reinvoice → NetSuite']
+  created_at         timestamptz
+  updated_at         timestamptz
+
+  indexes {
+    (operator_id, consumption_period) [unique, name: 'uq_str_charge_operator_period']
+    consumption_period
+    operator_id
+  }
+}

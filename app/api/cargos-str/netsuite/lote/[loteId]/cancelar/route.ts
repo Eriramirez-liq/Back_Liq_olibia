@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { cancelarLote } from "@/lib/integrations/netsuite/service"
+import { netsuiteHabilitado, respuestaFase2NoDisponible } from "@/lib/fase-netsuite"
 import { isNetsuiteServiceError } from "@/lib/integrations/netsuite/errors"
 
 export const runtime = "nodejs"
@@ -22,6 +23,8 @@ export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ loteId: string }> },
 ) {
+  if (!netsuiteHabilitado()) return respuestaFase2NoDisponible()
+
   const session = await auth()
   if (!session) {
     return NextResponse.json(

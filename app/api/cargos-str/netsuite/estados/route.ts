@@ -16,11 +16,15 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { obtenerEstadosPorCargo } from "@/lib/integrations/netsuite/service"
 import { isNetsuiteServiceError } from "@/lib/integrations/netsuite/errors"
+import { netsuiteHabilitado, respuestaFase2NoDisponible } from "@/lib/fase-netsuite"
 import { estadosQuerySchema, extractEstadosQuery } from "@/lib/validation/netsuite"
 
 export const runtime = "nodejs"
 
 export async function GET(request: NextRequest) {
+  // Fase 2 apagada: "no hay nada", no un error, para no romper la pantalla.
+  if (!netsuiteHabilitado()) return NextResponse.json({}, { status: 200 })
+
   const session = await auth()
   if (!session) {
     return NextResponse.json(

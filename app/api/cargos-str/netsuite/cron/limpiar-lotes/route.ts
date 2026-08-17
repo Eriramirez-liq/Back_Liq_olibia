@@ -17,11 +17,14 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { limpiarLotesColgados } from "@/lib/integrations/netsuite/service"
+import { netsuiteHabilitado, respuestaFase2NoDisponible } from "@/lib/fase-netsuite"
 import { logNetsuite } from "@/lib/integrations/netsuite/audit"
 
 export const runtime = "nodejs"
 
 export async function GET(request: NextRequest) {
+  if (!netsuiteHabilitado()) return respuestaFase2NoDisponible()
+
   const cronSecret = process.env.CRON_SECRET
 
   if (cronSecret) {

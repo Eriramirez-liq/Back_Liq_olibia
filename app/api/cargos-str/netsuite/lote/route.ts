@@ -14,12 +14,15 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { crearLote } from "@/lib/integrations/netsuite/service"
 import { isNetsuiteServiceError } from "@/lib/integrations/netsuite/errors"
+import { netsuiteHabilitado, respuestaFase2NoDisponible } from "@/lib/fase-netsuite"
 import { crearLoteSchema } from "@/lib/validation/netsuite"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
+  if (!netsuiteHabilitado()) return respuestaFase2NoDisponible()
+
   const session = await auth()
   if (!session) {
     return NextResponse.json(

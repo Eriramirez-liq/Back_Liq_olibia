@@ -104,11 +104,43 @@ OLIBIA_DEFAULT_ROL=ANALISTA
 AUTH_SECRET=
 
 # ── Integraciones ──────────────────────────────────────────────────────
-NETSUITE_MODE=mock
+# NO cargar NETSUITE_ENABLED: la fase 2 va cerrada. Ver §3.1.
 BIA_BILLS_API_URL=
 METABASE_API_KEY=
-CRON_SECRET=
 ```
+
+### 3.1 · Fase 1 solamente: qué queda fuera
+
+El backend es una sola app Next, así que desplegarla publica sus 44 rutas — no
+hay forma de publicar un subconjunto. Para que la **fase 2 (NetSuite) no esté
+disponible**, sus nueve rutas están detrás de `NETSUITE_ENABLED`, que está
+**cerrado por defecto**: no cargar la variable deja la integración apagada.
+
+| Ruta | Con la fase 2 cerrada |
+|---|---|
+| `POST /netsuite/lote`, `/procesar`, `/cancelar`, `/reenviar` | 503 `NETSUITE_NO_DISPONIBLE` |
+| `GET /netsuite/lote/[id]`, `/cron/limpiar-lotes` | 503 |
+| `GET /netsuite/lote/activo` | 204 — "no hay lote activo" |
+| `GET /netsuite/estados` | `{}` |
+| `GET /netsuite/lotes` | `{ lotes: [] }` |
+
+Las tres últimas responden "no hay nada" en vez de error **a propósito**: son las
+que la pantalla de Cargos STR consulta sola al abrirse. Si devolvieran 503, la
+pestaña que sí queremos usar mostraría errores.
+
+En la UI el botón **Crear OC** va a seguir visible; si alguien lo pulsa recibe el
+503 con el mensaje de que la integración no está desplegada. No se crea ninguna
+orden de compra, ni real ni simulada.
+
+Cuando llegue la fase 2, se abre con `NETSUITE_ENABLED=true` más las
+`NETSUITE_*` que correspondan.
+
+### 3.2 · Qué otras pantallas quedan a medias
+
+Sin `METABASE_API_KEY` ni `BIA_BILLS_API_URL`, las fuentes **Facturación BIA** y
+**XM/CGM** del wizard fallan, y el dashboard no trae el precio de bolsa. Es
+esperable en un despliegue de fase 1: Cargas STR, Cargos STR, Conciliaciones y
+Gestiones funcionan.
 
 Notas sobre algunas:
 
@@ -126,6 +158,10 @@ Notas sobre algunas:
 ---
 
 ## 4. El cron que se queda sin plataforma
+
+> En un despliegue de fase 1 esto **no aplica todavía**: el endpoint de limpieza
+> está cerrado junto con el resto de NetSuite. Queda documentado para cuando se
+> abra la fase 2.
 
 `vercel.json` declara un cron diario que limpia lotes de NetSuite colgados:
 

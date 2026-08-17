@@ -1,7 +1,7 @@
 # El backend se porta a Go, y se despliega desde `bia-bills`
 
 > **Última actualización:** 2026-08-17
-> **Estado:** Fase 0 hecha (esqueleto). Ver el plan por fases al final.
+> **Estado:** Fases 0 y 1 hechas. Ver el plan por fases al final.
 
 ---
 
@@ -18,7 +18,7 @@ quiera desplegar**, porque ese repo sí está autorizado en cactus.
 
 ---
 
-## Las dos reglas que sostienen el arreglo
+## Las cinco reglas que sostienen el arreglo
 
 **1 · El módulo se llama `bia-bills`.**
 
@@ -32,6 +32,36 @@ trasvase exigiría reescribir imports — y ahí es donde se cuelan los errores.
 Siempre acá, y copiar. En cuanto alguien parchea directo allá, los dos repos
 divergen y el trasvase deja de ser mecánico. Si algo hay que arreglar sobre lo
 ya desplegado, se arregla acá y se vuelve a copiar.
+
+**3 · Todo archivo nuestro lleva prefijo `liquidations_`.**
+
+Sus paquetes ya tienen `entities/const.go`, `providers/postgres/database.go`,
+`router/router.go` y 75 controllers. Un archivo nuestro con uno de esos nombres
+**pisaría el suyo** al copiar. Por eso: `entities/liquidations_const.go`,
+`providers/postgres/liquidations_database.go`, `router/liquidations_router.go`,
+`controllers/liquidations_health.go`. Los servicios son la excepción: van en su
+propio subdirectorio (`services/cargos_str/`), que ya es un nombre nuevo.
+
+**4 · El módulo no referencia símbolos de bia-bills que no declare él mismo.**
+
+Aprendido a los golpes: el provider usaba `entities.ProdEnviroment`, que existe
+allá pero no acá — este repo no compilaba. Y declararlo acá habría colisionado al
+copiar el archivo a su paquete `entities`. La salida es que el módulo sea
+autocontenido: `LiqSQLDebug` lee la misma variable de entorno con nombre propio.
+
+Vale para constantes, helpers y tipos. Lo único compartido son los paquetes
+externos: `bia-commons-go`, gin, gorm.
+
+**5 · Una sola línea de edición manual en su `router.go`.**
+
+Toda la inyección de dependencias del módulo vive en
+`router/liquidations_router.go`. Registrar el módulo allá es agregar:
+
+```go
+RegisterLiquidations(apiPrefix)
+```
+
+Nada más. Todo el resto es copiar archivos.
 
 ---
 
@@ -107,7 +137,7 @@ mientras exista.
 | Fase | Qué | Estado |
 |---|---|---|
 | **0** | Esqueleto: `go.mod`, estructura espejo, Makefile, acceso a módulos privados | ✅ hecha |
-| **1** | Provider multi-base, router con `ginCommons`, endpoint de humo | pendiente |
+| **1** | Provider multi-base, router con `ginCommons`, endpoint de diagnóstico | ✅ hecha |
 | **2** | Vertical STR: parser con `excelize`, repositorios, servicio, controller, tests | pendiente |
 | **3** | Trasvase a bia-bills: copiar, registrar rutas, migraciones, variables, PR | pendiente |
 | **4** | Resto de módulos, uno por uno | pendiente |

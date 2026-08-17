@@ -35,19 +35,40 @@ export async function GET(request: NextRequest) {
     cargaId?: string
   }
 
-  async function estadoDe(tipoFuente: "FACTURACION" | "XM" | "SDL" | "BALANCE" | "TC1", orId?: string): Promise<EstadoFuente> {
-    if (!periodo) return { estado: "pendiente" }
+  // Una sola consulta para todo el período en vez de una por (fuente, operador).
+  // Antes eran 2 + 21×3 = 65 consultas en paralelo: con el pool de Prisma se
+  // encolaban y, si la latencia a Supabase no era mínima, el endpoint moría
+  // contra el timeout del pool.
+  // COT queda fuera a propósito: está en el enum pero no tiene parser ni rama en
+  // /api/cargas/preview, así que nunca podría figurar como cargada.
+  const FUENTES_SEGUIDAS = [
+    "FACTURACION", "XM", "SDL", "BALANCE", "TC1", "INSUMOS_STR", "INSUMOS_TARIFAS_SDL",
+  ] as const
 
-    const carga = await db.cargaFuente.findFirst({
-      where: {
-        periodo_id: periodo.id,
-        tipo_fuente: tipoFuente,
-        ...(orId ? { or_id: orId } : { or_id: null }),
-      },
-      include: { cargado_por: { select: { nombre: true } } },
-      orderBy: { createdAt: "desc" },
-    })
+  const cargas = periodo
+    ? await db.cargaFuente.findMany({
+        where: {
+          periodo_id: periodo.id,
+          tipo_fuente: { in: [...FUENTES_SEGUIDAS] },
+        },
+        include: { cargado_por: { select: { nombre: true } } },
+        orderBy: { createdAt: "desc" },
+      })
+    : []
 
+  // Como vienen ordenadas por fecha desc, la primera de cada clave es la vigente.
+  const clave = (tipoFuente: string, orId?: string | null) => `${tipoFuente}|${orId ?? ""}`
+  const ultimaCarga = new Map<string, (typeof cargas)[number]>()
+  for (const c of cargas) {
+    const k = clave(c.tipo_fuente, c.or_id)
+    if (!ultimaCarga.has(k)) ultimaCarga.set(k, c)
+  }
+
+  function estadoDe(
+    tipoFuente: (typeof FUENTES_SEGUIDAS)[number],
+    orId?: string,
+  ): EstadoFuente {
+    const carga = ultimaCarga.get(clave(tipoFuente, orId))
     if (!carga) return { estado: "pendiente" }
     return {
       estado: carga.estado === "COMPLETADA" ? "cargada" : carga.estado === "ERROR" ? "error" : "pendiente",
@@ -58,41 +79,29 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const [facturacion, xm] = await Promise.all([
-    estadoDe("FACTURACION"),
-    estadoDe("XM"),
-  ])
+  const facturacion = estadoDe("FACTURACION")
+  const xm = estadoDe("XM")
+  // Fuentes sin OR: se cargan una vez por período, como facturación y XM.
+  const insumosStr = estadoDe("INSUMOS_STR")
+  const insumosTarifasSdl = estadoDe("INSUMOS_TARIFAS_SDL")
 
-  const sdlResultados = await Promise.all(
-    operadores.map(async (or: { id: string; codigo: string; nombre: string }) => ({
+  const porOperador = (tipoFuente: "SDL" | "BALANCE" | "TC1") =>
+    operadores.map((or: { id: string; codigo: string; nombre: string }) => ({
       orId: or.id,
       codigo: or.codigo,
       nombre: or.nombre,
-      ...(await estadoDe("SDL", or.id)),
+      ...estadoDe(tipoFuente, or.id),
     }))
-  )
 
-  const balanceResultados = await Promise.all(
-    operadores.map(async (or: { id: string; codigo: string; nombre: string }) => ({
-      orId: or.id,
-      codigo: or.codigo,
-      nombre: or.nombre,
-      ...(await estadoDe("BALANCE", or.id)),
-    }))
-  )
-
-  const tc1Resultados = await Promise.all(
-    operadores.map(async (or: { id: string; codigo: string; nombre: string }) => ({
-      orId: or.id,
-      codigo: or.codigo,
-      nombre: or.nombre,
-      ...(await estadoDe("TC1", or.id)),
-    }))
-  )
+  const sdlResultados = porOperador("SDL")
+  const balanceResultados = porOperador("BALANCE")
+  const tc1Resultados = porOperador("TC1")
 
   return NextResponse.json({
     facturacion,
     xm,
+    insumosStr,
+    insumosTarifasSdl,
     sdl: sdlResultados,
     tc1: tc1Resultados,
     balance: balanceResultados,

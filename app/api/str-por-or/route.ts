@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { leerCargosVigentes } from "@/lib/cargos-str"
 
 /**
  * GET /api/str-por-or?periodoId=<CUID>
  *
  * Devuelve el valor STR a pagar agrupado por operador de red para el período.
- * A diferencia de facturación/SDL/TC1, registros_str usa el CUID del período
- * (periodo.id) como clave, así que NO se convierte a string "AAAA-MM".
+ * El front sigue mandando el CUID del período de Supabase; acá se traduce a
+ * "AAAA-MM", que es la clave de la tabla en calculator-prices.
  * Solo lectura (idempotente). Montos a number solo para display.
  */
 export const runtime = "nodejs"
@@ -35,33 +36,21 @@ export async function GET(request: NextRequest) {
 
   const periodo = await db.periodoConciliacion.findUnique({
     where: { id: periodoId },
-    select: { id: true },
+    select: { anio: true, mes: true },
   })
   if (!periodo) return NextResponse.json(VACIO)
 
-  // registros_str.periodo_id = CUID del período.
-  const grupos = await db.registroSTR.groupBy({
-    by: ["or_id"],
-    where: { periodo_id: periodoId },
-    _sum: { valor_cop: true },
-  })
+  // Los cargos STR viven en calculator-prices (base de BIA) y su clave es el
+  // período como "AAAA-MM", no el CUID de Supabase.
+  const periodoStr = `${periodo.anio}-${String(periodo.mes).padStart(2, "0")}`
+  const registros = await leerCargosVigentes({ periodos: [periodoStr] })
 
-  const orIds = grupos.map((g) => g.or_id)
-  const configs = await db.configuracionOR.findMany({
-    where: { id: { in: orIds } },
-    select: { id: true, codigo: true, nombre: true },
-  })
-  const configPorId = new Map(configs.map((c) => [c.id, c]))
-
-  const operadores: OperadorSTR[] = grupos
-    .map((g) => {
-      const cfg = configPorId.get(g.or_id)
-      return {
-        orCodigo: cfg?.codigo ?? g.or_id,
-        orNombre: cfg?.nombre ?? g.or_id,
-        valorCop: Number(g._sum.valor_cop ?? 0),
-      }
-    })
+  const operadores: OperadorSTR[] = registros
+    .map((r) => ({
+      orCodigo: r.operator_code,
+      orNombre: r.operator_name,
+      valorCop: Number(r.amount_payable),
+    }))
     .sort((a, b) => a.orNombre.localeCompare(b.orNombre))
 
   const total = operadores.reduce((acc, o) => acc + o.valorCop, 0)

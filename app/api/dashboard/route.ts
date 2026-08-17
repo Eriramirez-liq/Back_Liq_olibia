@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { totalesPorPeriodo } from "@/lib/cargos-str"
 import { normalizar, construirBaseClasif, clasifConHerencia, claveBase, clasificarCongruencia } from "@/lib/engine/congruencia"
 
 /**
@@ -11,7 +12,7 @@ import { normalizar, construirBaseClasif, clasifConHerencia, claveBase, clasific
  * facturación (consumo + 1) — esa derivación la hace el frontend.
  *
  * KPIs:
- *  - Cargo STR    = Σ registros_str.valor_cop del período.
+ *  - Cargo STR    = Σ valor a pagar del período, desde calculator-prices.
  *  - Cargo SDL    = Σ (valor_sdl_cop + valor_reactiva_cop) de registros_sdl
  *                   (preliquidación activa + reactiva, sin duplicados).
  *  - Pérdidas     = contingencias pendientes (lógica existente).
@@ -81,11 +82,8 @@ export async function GET(request: NextRequest) {
       _sum:   { costo_estimado_cop: true, energia_kwh: true },
     }),
     db.disputa.count({ where: { periodo_id: periodoId } }),
-    // Cargo STR
-    db.registroSTR.aggregate({
-      where: { periodo_id: periodoId },
-      _sum: { valor_cop: true },
-    }),
+    // Cargo STR — vive en calculator-prices (base de BIA), no en Supabase.
+    totalesPorPeriodo([periodoStr]),
     // Cargo SDL (activa + reactiva), excluyendo duplicados — clave string
     db.registroSDL.aggregate({
       where: { periodo_id: periodoStr, es_duplicado: false },
@@ -131,7 +129,7 @@ export async function GET(request: NextRequest) {
   const perdidasKwh        = Number(contingenciasAgg._sum.energia_kwh ?? 0)
 
   // ── Cargo STR / SDL ──────────────────────────────────────────────────────
-  const cargoStrCop        = Number(strAgg._sum.valor_cop ?? 0)
+  const cargoStrCop        = strAgg.get(periodoStr) ?? 0
   const cargoSdlActivaCop  = Number(sdlAgg._sum.valor_sdl_cop ?? 0)
   const cargoSdlReactivaCop = Number(sdlAgg._sum.valor_reactiva_cop ?? 0)
   const cargoSdlCop        = cargoSdlActivaCop + cargoSdlReactivaCop

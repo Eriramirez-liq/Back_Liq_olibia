@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { totalesPorPeriodo } from "@/lib/cargos-str"
 import {
   ACTIVA_NT,
   REACTIVA_PCT,
@@ -29,9 +30,9 @@ import { obtenerDemandaProyectada } from "@/lib/integrations/proyeccion-demanda"
  * Resolucion de periodos:
  *  - Facturacion (RegistroFacturacion.periodo_id) = string "AAAA-MM" (consumo).
  *  - Tarifas (tarifas_sdl.periodo)               = string "AAAA-MM" (consumo).
- *  - STR (registros_str.periodo_id)              = CUID de PeriodoConciliacion.
- *    Para el total STR de un mes de consumo resolvemos "AAAA-MM" -> CUID via
- *    PeriodoConciliacion(anio, mes) y sumamos valor_cop de ese periodo.
+ *  - STR (calculator-prices, base de BIA)        = string "AAAA-MM" (consumo).
+ *    El periodo de conciliacion se sigue consultando para distinguir "el mes no
+ *    existe" de "existe pero no tiene cargos STR".
  */
 export const runtime = "nodejs"
 // Puede consultar Metabase (demanda proyectada) además de las queries de BD.
@@ -186,25 +187,13 @@ export async function GET(request: NextRequest) {
     const clave = `${p.anio}-${String(p.mes).padStart(2, "0")}`
     cuidPorConsumo.set(clave, p.id)
   }
-  const cuidsRelevantes = mesesRealesStr
-    .map((mes) => cuidPorConsumo.get(mes))
-    .filter((id): id is string => typeof id === "string")
+  // Los cargos STR viven en calculator-prices (base de BIA) y se agrupan por el
+  // período "AAAA-MM", no por el CUID de Supabase.
+  const strPorMes = await totalesPorPeriodo(mesesRealesStr)
 
-  const strPorCuid = new Map<string, number>()
-  if (cuidsRelevantes.length > 0) {
-    const agregadoStr = await db.registroSTR.groupBy({
-      by: ["periodo_id"],
-      where: { periodo_id: { in: cuidsRelevantes } },
-      _sum: { valor_cop: true },
-    })
-    for (const g of agregadoStr) {
-      strPorCuid.set(g.periodo_id, g._sum.valor_cop ? Number(g._sum.valor_cop) : 0)
-    }
-  }
   function strTotalDe(mesConsumo: string): number | null {
-    const cuid = cuidPorConsumo.get(mesConsumo)
-    if (!cuid) return null // no existe el periodo en conciliacion
-    return strPorCuid.get(cuid) ?? null // existe periodo pero sin registros STR
+    if (!cuidPorConsumo.has(mesConsumo)) return null // no existe el periodo en conciliacion
+    return strPorMes.get(mesConsumo) ?? null         // existe periodo pero sin cargos STR
   }
 
   // --- 3) Construir meses reales (modelo intermedio) ---

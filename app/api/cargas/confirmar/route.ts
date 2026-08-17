@@ -12,6 +12,7 @@ import {
 import type { FilaSTR } from "@/lib/parsers/insumos-str"
 import type { FilaTarifaSDL } from "@/lib/parsers/insumos-tarifas-sdl"
 import { confirmarBodySchema } from "@/lib/validation/cargas"
+import { guardarCargaStr } from "@/lib/cargos-str"
 import { esPeriodoPermitido } from "@/lib/utils/periodos"
 
 export async function POST(request: NextRequest) {
@@ -391,40 +392,14 @@ export async function POST(request: NextRequest) {
           break
         }
         case "INSUMOS_STR": {
-          // Sobrescritura: cada carga reemplaza a las anteriores del mismo
-          // período. Borramos todos los registros_str del período antes de
-          // insertar los nuevos. Los cargas_fuente previas permanecen como
-          // historial pero quedan con 0 registros efectivos.
-          await tx.registroSTR.deleteMany({
-            where: { periodo_id: periodo.id },
-          })
-
-          const filas = filasCompletas as FilaSTR[]
-          if (filas.length === 0) break
-          // Resolver or_codigo → or_id (cache)
-          const codigos = Array.from(new Set(filas.map(f => f.or_codigo).filter(Boolean)))
-          const ors = await tx.configuracionOR.findMany({
-            where: { codigo: { in: codigos } },
-            select: { id: true, codigo: true },
-          })
-          const codigoToId = new Map(ors.map(o => [o.codigo, o.id]))
-          const datos = filas
-            .map((f) => {
-              const orId = codigoToId.get(f.or_codigo)
-              if (!orId) return null
-              return {
-                carga_id: carga.id,
-                periodo_id: periodo.id,
-                or_id: orId,
-                mes_consumo: f.mes_consumo,
-                valor_cop: f.valor_cop,
-                detalle_json: f.detalle as Prisma.InputJsonValue ?? Prisma.JsonNull,
-              }
-            })
-            .filter((d): d is NonNullable<typeof d> => d !== null)
-          if (datos.length > 0) {
-            await tx.registroSTR.createMany({ data: datos })
-          }
+          // Los datos de STR ya NO viven en Supabase: van a las bases de BIA
+          // (file-compiler y calculator-prices). La escritura ocurre fuera de
+          // esta transacción de Prisma —son otras bases— así que se hace
+          // después de que el commit de acá haya salido bien. Ver más abajo.
+          //
+          // No se borra ni se reemplaza nada: el modelo es append-only y cada
+          // cargue queda identificado por `carga.id`. Las lecturas toman el
+          // registro más reciente por (período, operador).
           break
         }
       }
@@ -454,6 +429,29 @@ export async function POST(request: NextRequest) {
 
       return { cargaId: carga.id, totalGuardados: filasCompletas.length }
     }, { timeout: 60_000, maxWait: 10_000 })  // 60s para cargas grandes (merge EPM, etc.)
+
+    // ── Fuentes ya migradas: los datos van a las bases de BIA ──────────────
+    // No pueden ir dentro de la transacción de arriba porque son otras bases y
+    // no hay transacción distribuida. Si esta escritura falla, la carga queda
+    // marcada como ERROR: mejor que figure fallida a que el historial diga
+    // "completada" sin datos detrás.
+    if (meta.tipoFuente === "INSUMOS_STR") {
+      try {
+        await guardarCargaStr(resultado.cargaId, filasCompletas as FilaSTR[])
+      } catch (e) {
+        await db.cargaFuente
+          .update({ where: { id: resultado.cargaId }, data: { estado: "ERROR" } })
+          .catch(() => {})
+        console.error("Error al guardar Cargos STR en las bases de BIA:", e)
+        return NextResponse.json(
+          {
+            error: "No se pudieron guardar los datos en las bases de BIA",
+            detalle: e instanceof Error ? e.message : String(e),
+          },
+          { status: 502 },
+        )
+      }
+    }
 
     return NextResponse.json(resultado)
   } catch (e) {

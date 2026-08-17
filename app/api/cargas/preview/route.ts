@@ -6,6 +6,7 @@ import { parsearXM } from "@/lib/parsers/xm"
 import { parsearSDL } from "@/lib/parsers/sdl"
 import { parsearBalance } from "@/lib/parsers/balance"
 import { parsearInsumosSTR } from "@/lib/parsers/insumos-str"
+import { completarNombres } from "@/lib/agentes-str"
 import { parsearTC1 } from "@/lib/parsers/tc1"
 import { parsearInsumosTarifasSDL } from "@/lib/parsers/insumos-tarifas-sdl"
 import {
@@ -148,6 +149,18 @@ export async function POST(request: NextRequest) {
           }))
         )
         result = await parsearInsumosSTR(buffers, anio, mes)
+
+        // El nombre legal del operador sale de public.agents (file-compiler).
+        // Si el catálogo no responde, el preview igual se muestra: lo que el
+        // usuario valida en pantalla son los montos.
+        const conNombres = await completarNombres(result.filas)
+        result = {
+          ...result,
+          filas: conNombres.filas,
+          alertas: conNombres.advertencia
+            ? [...result.alertas, conNombres.advertencia]
+            : result.alertas,
+        }
         break
       }
       case "TC1": {
@@ -181,9 +194,10 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Para TC1 quitamos el objeto `detalle` del preview (se veria como
-  // [object Object] en la tabla). filasCompletas SI lo conserva para guardar.
-  const preview = tipoFuente === "TC1"
+  // Para TC1 e INSUMOS_STR quitamos el objeto `detalle` del preview (se veria
+  // como [object Object] en la tabla, porque el front arma las columnas con
+  // Object.keys de la primera fila). filasCompletas SI lo conserva para guardar.
+  const preview = tipoFuente === "TC1" || tipoFuente === "INSUMOS_STR"
     ? result.filas.slice(0, 20).map((f) => {
         const { detalle, ...resto } = f as Record<string, unknown>
         void detalle

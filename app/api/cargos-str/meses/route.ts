@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { periodosConCargos } from "@/lib/cargos-str"
 
 /**
  * GET /api/cargos-str/meses
@@ -18,16 +19,13 @@ export async function GET() {
 
   const set = new Set<string>()
 
-  // Si la tabla registros_str aún no existe (migración pendiente),
-  // simplemente seguimos con los meses de periodos_conciliacion.
+  // Meses con datos, desde calculator-prices (base de BIA). Si esa base no
+  // responde, seguimos con los períodos de conciliación: el filtro es de
+  // conveniencia y no vale la pena romper la pantalla por él.
   try {
-    const registrosMeses = await db.registroSTR.findMany({
-      select: { mes_consumo: true },
-      distinct: ["mes_consumo"],
-    })
-    for (const r of registrosMeses) set.add(r.mes_consumo)
+    for (const periodo of await periodosConCargos()) set.add(periodo)
   } catch (e) {
-    console.warn("[cargos-str/meses] registros_str no disponible:", e)
+    console.warn("[cargos-str/meses] calculator-prices no disponible:", e)
   }
 
   // Fallback: meses derivados de los períodos de conciliación existentes.

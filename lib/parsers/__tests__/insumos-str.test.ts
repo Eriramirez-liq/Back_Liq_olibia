@@ -12,11 +12,14 @@ import { MAX_REFACTURAS, parsearInsumosSTR } from "@/lib/parsers/insumos-str"
  *
  *   CHEC = 70.812.140 (factura) − 906 − 3.536 (ajustes) = 70.807.698
  *
- * Los archivos viven en `archivos_ejemplo/STR/` y NO están versionados (son
- * insumos reales). Si no están, esos tests se saltan en vez de fallar.
+ * Los fixtures viven junto al parser de Go, en `services/cargos_str/testdata/`, y
+ * están versionados. Se comparten a propósito: los dos parsers tienen que dar el
+ * mismo número contra los mismos archivos, y una sola copia en git evita que se
+ * desincronicen. Cuando el parser TypeScript se borre, los fixtures se quedan
+ * donde están.
  */
 
-const DIR_EJEMPLOS = join(process.cwd(), "archivos_ejemplo", "STR")
+const DIR_EJEMPLOS = join(process.cwd(), "services", "cargos_str", "testdata")
 
 // El período que el usuario elige en el wizard. Desde la migración, es la ÚNICA
 // fuente del período: ya no se deduce del nombre del archivo.

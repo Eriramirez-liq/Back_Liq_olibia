@@ -20,28 +20,31 @@ import (
 //	CHEC = 70.812.140 (factura) − 906 − 3.536 (ajustes) = 70.807.698
 //	lote = 1.460.833.304
 //
-// Los archivos viven en archivos_ejemplo/STR/ y NO están versionados (son insumos
-// reales). Sin ellos el test se saltea en vez de fallar, así que en CI no corre.
+// Los archivos viven en testdata/ y SÍ están versionados, a propósito: es la
+// convención de Go para fixtures y —lo importante— viajan con el paquete cuando
+// se trasvasa a bia-bills, así que el test también corre en su CI. Si vivieran en
+// archivos_ejemplo/ de la raíz, allá se saltearía y la validación quedaría solo en
+// la máquina de quien programa.
 
 const (
 	periodo   = "2026-05"
 	anio, mes = 2026, 5
 
-	checFactura  = 70_812_140.0
-	checAjustes  = -906.0 - 3_536.0
-	checAPagar   = 70_807_698.0
-	totalLote    = 1_460_833_304.0
-	operadores   = 23
-	aireFactura  = 142_265_108.0
+	checFactura = 70_812_140.0
+	checAjustes = -906.0 - 3_536.0
+	checAPagar  = 70_807_698.0
+	totalLote   = 1_460_833_304.0
+	operadores  = 23
+	aireFactura = 142_265_108.0
 )
 
 func cargarArchivos(t *testing.T) []cargos_str.UploadedFile {
 	t.Helper()
 
-	dir := filepath.Join("..", "..", "archivos_ejemplo", "STR")
+	dir := "testdata"
 	entradas, err := os.ReadDir(dir)
 	if err != nil {
-		t.Skipf("sin archivos de ejemplo en %s: %v", dir, err)
+		t.Fatalf("faltan los fixtures en %s: %v", dir, err)
 	}
 
 	var archivos []cargos_str.UploadedFile
@@ -57,7 +60,7 @@ func cargarArchivos(t *testing.T) []cargos_str.UploadedFile {
 	}
 
 	if len(archivos) == 0 {
-		t.Skip("no hay .xlsx en archivos_ejemplo/STR")
+		t.Fatal("no hay .xlsx en testdata")
 	}
 
 	return archivos

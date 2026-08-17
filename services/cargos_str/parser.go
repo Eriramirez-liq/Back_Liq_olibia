@@ -37,9 +37,9 @@ type UploadedFile struct {
 // Misma forma que la tabla liquidations_str_inputs, así lo que el usuario valida
 // en pantalla es exactamente lo que queda guardado.
 type StrRow struct {
-	OperatorCode string   `json:"operator_code"`
-	OperatorName string   `json:"operator_name,omitempty"` // se resuelve contra public.agents
-	Period       string   `json:"period"`
+	OperatorCode  string  `json:"operator_code"`
+	OperatorName  string  `json:"operator_name,omitempty"` // se resuelve contra public.agents
+	Period        string  `json:"period"`
 	InvoiceAmount float64 `json:"invoice_amount"`
 	// nil = ese archivo de ajuste no vino en el lote.
 	// 0   = vino y el operador tenía cero. Son cosas distintas.

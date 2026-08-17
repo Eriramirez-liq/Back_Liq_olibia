@@ -92,6 +92,25 @@ Estado desde la perspectiva de este backend. `✅` = declarado y usado por el fr
 | GET | `/api/cargos-str/netsuite/cron/limpiar-lotes` | — cron de Vercel, auth por `CRON_SECRET` |
 | GET | `/api/cargos-str/meses` | ❌ sin declarar en el front |
 
+**Estos endpoints tienen reemplazo en Go, ya trasvasado a bia-bills.** No son de
+este repo: viven en el servicio `bia-bills` bajo su prefijo, y el front los
+consume con `doFetch` (gateway BIA) y no con `doFetchLiquidations`.
+
+| Método | Ruta en bia-bills | Estado |
+|--------|-------------------|--------|
+| GET | `/ms-bill/liquidations/health` | 🔶 `strHealthGo` declarado, sin consumir |
+| POST | `/ms-bill/liquidations/cargos-str/preview` | 🔶 `strPreviewGo` declarado, sin consumir |
+| POST | `/ms-bill/liquidations/cargos-str/confirm` | 🔶 `strConfirmGo` declarado, sin consumir |
+| GET | `/ms-bill/liquidations/cargos-str` | 🔶 `strCargosGo` declarado, sin consumir |
+| GET | `/ms-bill/liquidations/cargos-str/periods` | 🔶 `strPeriodosGo` declarado, sin consumir |
+
+🔶 = el código está y pasa los tests, pero **falta desplegar bia-bills en dev con
+las variables `liq_*`**. Hasta entonces la pantalla sigue usando `/api/cargos-str`
+de este repo. Nada del front cambió de comportamiento todavía.
+
+La fase 2 de NetSuite (los endpoints `/netsuite/...`) **no** se portó a Go: sigue
+solo acá y sin desplegar.
+
 ### Catálogos, dashboard y administración
 
 | Método | Ruta | Estado |
@@ -135,6 +154,41 @@ Estado desde la perspectiva de este backend. `✅` = declarado y usado por el fr
 ## 5. Bitácora de cambios
 
 Más reciente primero. Cada entrada: qué cambió, por qué, y qué implica para el otro repo.
+
+### 2026-08-17 — Cargos STR se trasvasa a bia-bills (fase 3 del port a Go)
+
+El módulo de Cargos STR ya vive en Go dentro de `bia-bills`, rama
+`feat/liquidations-cargos-str`, commit `82ba2a1b`. Es el primer módulo que se
+despliega desde ahí en vez de este repo.
+
+**Por qué bia-bills y no acá:** cactus solo despliega repos de la organización, y
+los backends de BIA son todos Go. En vez de pelear con permisos, el backend se
+desarrolla acá y cada endpoint terminado se copia allá.
+
+**Qué implica para el front:** las rutas migradas quedan bajo `/ms-bill/liquidations/...`
+y se consumen con `doFetch`, no con `doFetchLiquidations`. Ya están declaradas en
+su `endpoints.ts` (`strCargosGo`, `strPeriodosGo`, `strPreviewGo`, `strConfirmGo`,
+`strHealthGo`) **pero todavía no se consumen**: la pantalla sigue pegándole a
+`/api/cargos-str` de este repo. Se cambia cuando el servicio Go esté verificado en
+dev, y es una línea por hook.
+
+**Dos correcciones al plan que salieron de hacerlo:**
+
+1. **No van migraciones en la cadena de bia-bills.** Su `MigrateDB()` corre contra
+   la base *del servicio*; una migración `193_*` habría creado las tablas de
+   Liquidaciones en la base equivocada. El DDL sigue en `sql/cargos-str/`, aplicado
+   por fuera. El documento del port decía lo contrario y se corrigió.
+2. **`go.mod` de bia-bills no cambió.** Todas las dependencias estaban ya, en la
+   misma versión — se habían pineado así a propósito en la fase 0. El trasvase
+   tocó **4 líneas** de su código: la llamada a `RegisterLiquidations(apiPrefix)`.
+
+**Sin verificar todavía:** el servicio corriendo en dev. Falta el PR, y sobre todo
+las variables `liq_db_*` en cactus (Environments) — sin ellas el servicio arranca
+igual, pero `GET /ms-bill/liquidations/health` responde 503. Son las credenciales
+de `file-compiler`/`calculator-prices`, no las del usuario de bia-bills.
+
+Detalle del trasvase y cómo repetirlo para el próximo módulo:
+[docs/backend/migracion-a-go.md](./docs/backend/migracion-a-go.md).
 
 ### 2026-08-16 — Cargos STR: nombres en inglés y una sola tabla por base
 
@@ -351,6 +405,17 @@ token real de Firebase** (requiere login en browser): la comprobación pendiente
 
 ## 6. Pendientes y decisiones abiertas
 
+- **Cargos STR en Go — falta desplegar.** El código está en bia-bills y pasa 58 tests, pero nada
+  corre en dev todavía. En orden: PR de `feat/liquidations-cargos-str`; cargar las variables
+  `liq_db_host`, `liq_db_port`, `liq_db_user`, `liq_db_password` (y opcionalmente
+  `liq_db_name_file_compiler`, `liq_db_name_calculator_prices`, `liq_db_ssl_mode`) en cactus →
+  Environments; verificar con `GET /ms-bill/liquidations/health`; y solo entonces mover el consumo
+  del front de `cargosStrMatriz` a `strCargosGo`. **Ojo con las credenciales**: son las de
+  `file-compiler`/`calculator-prices`, no las del usuario de bia-bills, que no tiene permisos ahí.
+- **Convivencia de dos backends.** Mientras se migra módulo por módulo, el front tiene endpoints en
+  las dos formas: `/api/...` por el proxy de App_Liquidaciones y `/ms-bill/liquidations/...` por el
+  gateway BIA. No es transitorio de un día — va a durar todo lo que dure el port, así que conviene
+  que cada endpoint diga en el `endpoints.ts` de qué lado está.
 - **Cargas STR — consolidación en curso.** Fase 1 ya validada contra este endpoint (ver §5). Falta:
   liberar el **:4000** (hoy lo disputa el dev-server del servicio STR); mover la homologación de
   columnas del `HOMOLOGACION` hardcodeado del parser a una columna nueva en `ConfiguracionOR`

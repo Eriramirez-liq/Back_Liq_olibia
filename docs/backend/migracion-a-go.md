@@ -127,8 +127,15 @@ bien.
 `endpoints.ts` del front, y el resto sigue apuntando al backend TypeScript
 mientras exista.
 
-**Las migraciones se numeran en su cadena.** Formato golang-migrate,
-`NNN_nombre.up.sql` / `.down.sql`, continuando desde la 192 de bia-bills.
+**Las migraciones NO van en la cadena de bia-bills.** Esto estaba mal en la
+versión anterior de este documento y se corrigió al hacer el trasvase: su
+`MigrateDB()` corre contra `db_postgres_db_name`, o sea la base **del servicio**.
+Una migración `193_*` crearía las tablas de Liquidaciones ahí —en la base
+equivocada— y dejaría las de verdad sin gestionar.
+
+El DDL de `file-compiler` y `calculator-prices` se aplica por fuera y vive en
+[`sql/cargos-str/`](../../sql/cargos-str/). Si algún módulo futuro guardara en la
+base del servicio, ahí sí correspondería una migración numerada desde la 192.
 
 ---
 
@@ -139,10 +146,65 @@ mientras exista.
 | **0** | Esqueleto: `go.mod`, estructura espejo, Makefile, acceso a módulos privados | ✅ hecha |
 | **1** | Provider multi-base, router con `ginCommons`, endpoint de diagnóstico | ✅ hecha |
 | **2** | Vertical STR: parser con `excelize`, repositorios, servicio, controller, tests | ✅ hecha |
-| **3** | Trasvase a bia-bills: copiar, registrar rutas, migraciones, variables, PR | pendiente |
+| **3** | Trasvase a bia-bills: copiar, registrar rutas, variables, PR | 🔶 código listo, falta desplegar |
 | **4** | Resto de módulos, uno por uno | pendiente |
 
 El TypeScript de cada módulo se borra cuando su versión Go está en producción.
+
+### El trasvase de Cargos STR, como quedó
+
+Rama `feat/liquidations-cargos-str` en bia-bills, commit `82ba2a1b`: 28 archivos,
+4199 líneas, y **4 líneas tocadas** de su código existente —la llamada a
+`RegisterLiquidations(apiPrefix)` en `router.go`, después del bloque de rutas—.
+
+Lo que confirmó que las cinco reglas de la fase 0 sirvieron:
+
+- **Cero colisiones de nombres.** Se verificó archivo por archivo antes de copiar.
+- **`go.mod` no cambió.** Todas las dependencias ya estaban, en la misma versión:
+  excelize 2.8.0, sqlmock 1.5.0, uuid 1.3.1, gin 1.9.1, pgx 5.5.5, gorm 1.30.0.
+  Por eso se habían pineado así en la fase 0.
+- **58 tests pasan dentro de bia-bills**, incluidos los de integración contra las
+  bases de dev.
+
+Cómo repetirlo para el próximo módulo:
+
+```bash
+# Worktree desde main, para no tocar lo que haya sin commitear en bia-bills
+git -C ../bia-bills worktree add /tmp/wt-<modulo> -b feat/liquidations-<modulo> origin/main
+
+# Copiar (todo lo del módulo lleva prefijo liquidations_ o es un paquete propio)
+for f in $(git ls-files | grep -E "liquidations_|<paquete>"); do
+  mkdir -p /tmp/wt-<modulo>/$(dirname $f) && cp $f /tmp/wt-<modulo>/$f
+done
+
+# La única edición manual
+#   RegisterLiquidations(apiPrefix)   ← ya está, si el módulo cuelga del mismo router
+```
+
+`cmd/liquidations-dev/` **no** se trasvasa: es el harness local, y `cmd/` es una
+ruta que bia-bills no tiene.
+
+### Lo que falta para que esté en dev
+
+1. **Push y PR** de la rama a bia-bills.
+2. **Variables de entorno en cactus** (Environments, KEY=VALUE) — sin ellas el
+   servicio arranca igual pero el health del módulo da 503:
+
+   ```
+   liq_db_host, liq_db_port, liq_db_user, liq_db_password
+   liq_db_name_file_compiler      (default "file-compiler")
+   liq_db_name_calculator_prices  (default "calculator-prices")
+   liq_db_ssl_mode                (default "require")
+   ```
+
+   Son las credenciales de `file-compiler`/`calculator-prices`, **no** las del
+   usuario de bia-bills, que no tiene permisos ahí.
+3. **Verificar en dev** con `GET /ms-bill/liquidations/health` antes de tocar el
+   front.
+4. **Mover el consumo en el front**: los endpoints ya están declarados en su
+   `endpoints.ts` (`strCargosGo` y compañía) pero la pantalla todavía usa
+   `cargosStrMatriz`. Es una línea por hook, y hay que cambiar `doFetchLiquidations`
+   por `doFetch`.
 
 ## El riesgo a vigilar
 

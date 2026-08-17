@@ -98,15 +98,15 @@ consume con `doFetch` (gateway BIA) y no con `doFetchLiquidations`.
 
 | Método | Ruta en bia-bills | Estado |
 |--------|-------------------|--------|
-| GET | `/ms-bill/liquidations/health` | 🔶 `strHealthGo` declarado, sin consumir |
-| POST | `/ms-bill/liquidations/cargos-str/preview` | 🔶 `strPreviewGo` declarado, sin consumir |
-| POST | `/ms-bill/liquidations/cargos-str/confirm` | 🔶 `strConfirmGo` declarado, sin consumir |
-| GET | `/ms-bill/liquidations/cargos-str` | 🔶 `strCargosGo` declarado, sin consumir |
-| GET | `/ms-bill/liquidations/cargos-str/periods` | 🔶 `strPeriodosGo` declarado, sin consumir |
+| GET | `/ms-bill/liquidations/health` | ✅ desplegado en dev |
+| POST | `/ms-bill/liquidations/cargos-str/preview` | ✅ desplegado, consumido por `usePreviewStrGo` |
+| POST | `/ms-bill/liquidations/cargos-str/confirm` | ✅ desplegado, consumido por `useConfirmarStrGo` |
+| GET | `/ms-bill/liquidations/cargos-str` | ✅ desplegado, consumido por `useMatrizStrGo` |
+| GET | `/ms-bill/liquidations/cargos-str/periods` | ✅ desplegado, consumido por `usePeriodosStrGo` |
 
-🔶 = el código está y pasa los tests, pero **falta desplegar bia-bills en dev con
-las variables `liq_*`**. Hasta entonces la pantalla sigue usando `/api/cargos-str`
-de este repo. Nada del front cambió de comportamiento todavía.
+**Los `/api/cargos-str` de este repo quedaron sin uso para la matriz.** El front
+ya no los llama: STR entero pasa por Go. Siguen acá porque la fase 2 de NetSuite
+todavía los necesita.
 
 La fase 2 de NetSuite (los endpoints `/netsuite/...`) **no** se portó a Go: sigue
 solo acá y sin desplegar.
@@ -154,6 +154,41 @@ solo acá y sin desplegar.
 ## 5. Bitácora de cambios
 
 Más reciente primero. Cada entrada: qué cambió, por qué, y qué implica para el otro repo.
+
+### 2026-08-17 — STR corre en dev sobre Go, y Supabase sale de su circuito
+
+El módulo está **desplegado en desarrollo** (bia-bills, rama
+`feat/liquidations-cargos-str`, sin PR a `main` todavía) y el front ya lo consume:
+cargar archivos, previsualizar, confirmar y ver la matriz pasan por Go.
+
+Verificado en dev: `{"ok":true,"bases":[file-compiler, calculator-prices]}`, y la
+matriz de 2026-07 devolviendo 23 operadores por 1.403.159.917.
+
+**Dos cosas que costaron encontrar y conviene no volver a pisar:**
+
+1. **`services.dev.bia.app` no rutea `/ms-bill`.** Es el DNS que muestra cactus
+   para el backend, pero el tráfico real entra por **`olibia.dev.bia.app`**, que es
+   el `NEXT_PUBLIC_BACKEND_URL` del front. Probar contra el primero da 404 de
+   Envoy con cuerpo vacío, y parece que el módulo no se desplegó. La forma
+   confiable de probar es por el proxy del front —
+   `<host-del-front>/api/proxy/ms-bill/liquidations/health`— que además inyecta el
+   token.
+2. **Todo `/ms-bill/*` está detrás de un middleware de auth que corta ANTES de
+   rutear.** Una ruta inventada devuelve el mismo 400 que una que existe, así que
+   ese 400 no prueba nada sobre si tu endpoint quedó registrado. Hace falta un
+   token válido para distinguir.
+
+**Por qué el front no puede depender de este repo para STR:** el backend
+TypeScript no está desplegado en desarrollo. Sus llamadas caen al gateway BIA, que
+no sirve `/api/...`. Por eso el flujo de STR en el front no usa los catálogos de
+períodos ni de operadores: todo sale de la respuesta de cargos.
+
+**Lo que quedó apagado, por decisión:** el historial de cargas y el estado del
+período no reflejan las cargas de STR —leen de Supabase y este flujo ya no escribe
+ahí—, y el lote de NetSuite espera ids de Supabase que la vista ya no maneja.
+
+**Sin verificar:** el circuito desde la interfaz. Falta desplegar el front (rama
+`feat/liquidations-str-ajustes`) y hacer una carga real.
 
 ### 2026-08-17 — Cargos STR se trasvasa a bia-bills (fase 3 del port a Go)
 
@@ -405,13 +440,19 @@ token real de Firebase** (requiere login en browser): la comprobación pendiente
 
 ## 6. Pendientes y decisiones abiertas
 
-- **Cargos STR en Go — falta desplegar.** El código está en bia-bills y pasa 58 tests, pero nada
-  corre en dev todavía. En orden: PR de `feat/liquidations-cargos-str`; cargar las variables
-  `liq_db_host`, `liq_db_port`, `liq_db_user`, `liq_db_password` (y opcionalmente
-  `liq_db_name_file_compiler`, `liq_db_name_calculator_prices`, `liq_db_ssl_mode`) en cactus →
-  Environments; verificar con `GET /ms-bill/liquidations/health`; y solo entonces mover el consumo
-  del front de `cargosStrMatriz` a `strCargosGo`. **Ojo con las credenciales**: son las de
-  `file-compiler`/`calculator-prices`, no las del usuario de bia-bills, que no tiene permisos ahí.
+- **Cargos STR en Go — falta probarlo desde la interfaz.** El backend corre en dev y el front ya lo
+  consume, pero nadie hizo todavía una carga real por pantalla. Falta desplegar el front (rama
+  `feat/liquidations-str-ajustes`) y hacer el circuito completo. **Ojo**: confirmar desde la
+  interfaz escribe filas de verdad en `file-compiler` y `calculator-prices`, y el modelo es
+  append-only — no se deshace desde la pantalla. Conviene probar con un período sin datos.
+- **El PR a `main` de bia-bills está pendiente a propósito.** La rama
+  `feat/liquidations-cargos-str` está desplegada en dev directo, sin merge, hasta validar.
+- **El historial de cargas y el estado del período no ven las cargas de STR.** Consecuencia
+  aceptada de sacar Supabase del circuito: viven ahí y este flujo ya no escribe. Se resuelve cuando
+  se migre el módulo de Cargas completo, porque son de todas las fuentes y no solo de STR.
+- **El lote de NetSuite quedó incompatible con la matriz.** Sus endpoints esperan ids de Supabase
+  (CUID) y la vista ahora maneja `"2026-07"` y códigos de operador. En dev falla antes de llegar
+  porque vive en este backend, que no está desplegado. Hay que resolverlo al migrar NetSuite.
 - **Convivencia de dos backends.** Mientras se migra módulo por módulo, el front tiene endpoints en
   las dos formas: `/api/...` por el proxy de App_Liquidaciones y `/ms-bill/liquidations/...` por el
   gateway BIA. No es transitorio de un día — va a durar todo lo que dure el port, así que conviene

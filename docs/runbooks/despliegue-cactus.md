@@ -135,12 +135,22 @@ orden de compra, ni real ni simulada.
 Cuando llegue la fase 2, se abre con `NETSUITE_ENABLED=true` más las
 `NETSUITE_*` que correspondan.
 
-### 3.2 · Qué otras pantallas quedan a medias
+### 3.2 · Alcance del ambiente: solo lo validado
 
-Sin `METABASE_API_KEY` ni `BIA_BILLS_API_URL`, las fuentes **Facturación BIA** y
-**XM/CGM** del wizard fallan, y el dashboard no trae el precio de bolsa. Es
-esperable en un despliegue de fase 1: Cargas STR, Cargos STR, Conciliaciones y
-Gestiones funcionan.
+De lo que se probó de punta a punta contra este backend hay **una sola cosa**: el
+cargue de insumos STR y la visualización de su resultado.
+
+El resto de los endpoints —conciliaciones, gestiones, congruencia, tarifas SDL,
+administración— **no es código nuevo**: es el mismo que ya corría en Vercel. Se
+despliega igual, pero el front **no expone sus pestañas**: en olibia,
+`LIQUIDATIONS_TAB_KEYS_VISIBLES` deja visibles solo **Cargas** y **Cargos STR**.
+Habilitar la siguiente es agregar una línea a esa lista cuando se valide.
+
+Por eso `METABASE_API_KEY` y `BIA_BILLS_API_URL` quedan sin cargar: las fuentes
+**Facturación BIA** y **XM/CGM** no se probaron contra este despliegue. La
+consecuencia es que, dentro de la pestaña Cargas, el wizard **sigue ofreciendo
+las ocho fuentes** y elegir esas dos falla. Si molesta, se recorta `FUENTES` en
+el front.
 
 Notas sobre algunas:
 

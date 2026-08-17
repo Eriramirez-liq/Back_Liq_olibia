@@ -1,8 +1,9 @@
 package postgres
 
 import (
-	"fmt"
 	"log"
+	"net"
+	"net/url"
 
 	"bia-bills/entities"
 
@@ -97,15 +98,30 @@ func abrir(nombreBase string) *gorm.DB {
 	return instancia
 }
 
+// cadenaDeConexion arma el DSN escapando las credenciales.
+//
+// ⚠️ Acá se DESVÍA a propósito del `connectionString()` de database.go, que
+// interpola con Sprintf. Con una contraseña que contenga `/` o `#`, ese formato
+// no parsea y el servicio no conecta:
+//
+//	postgres://usuario:con/slash@host:5432/db  →  invalid port ":con" after host
+//
+// No es hipotético: estas credenciales se escriben a mano en cactus y se rotan.
+// `url.UserPassword` escapa lo que haga falta y es un no-op para una contraseña
+// alfanumérica, así que no cambia nada en el caso normal.
+//
+// `net.JoinHostPort` en vez de "%s:%s" por lo mismo: pone los corchetes si el
+// host fuera IPv6.
 func cadenaDeConexion(nombreBase string) string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		entities.LiqDbUser,
-		entities.LiqDbPass,
-		entities.LiqDbHost,
-		entities.LiqDbPort,
-		nombreBase,
-		entities.LiqDbSSLMode,
-	)
+	dsn := url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(entities.LiqDbUser, entities.LiqDbPass),
+		Host:     net.JoinHostPort(entities.LiqDbHost, entities.LiqDbPort),
+		Path:     "/" + nombreBase,
+		RawQuery: url.Values{"sslmode": {entities.LiqDbSSLMode}}.Encode(),
+	}
+
+	return dsn.String()
 }
 
 func (db liquidationsDB) Connection(id LiquidationsDatabase) *gorm.DB {

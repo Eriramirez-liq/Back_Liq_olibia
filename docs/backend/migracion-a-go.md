@@ -138,7 +138,7 @@ mientras exista.
 |---|---|---|
 | **0** | Esqueleto: `go.mod`, estructura espejo, Makefile, acceso a módulos privados | ✅ hecha |
 | **1** | Provider multi-base, router con `ginCommons`, endpoint de diagnóstico | ✅ hecha |
-| **2** | Vertical STR: parser con `excelize`, repositorios, servicio, controller, tests | pendiente |
+| **2** | Vertical STR: parser con `excelize`, repositorios, servicio, controller, tests | ✅ hecha |
 | **3** | Trasvase a bia-bills: copiar, registrar rutas, migraciones, variables, PR | pendiente |
 | **4** | Resto de módulos, uno por uno | pendiente |
 
@@ -156,3 +156,69 @@ Reescribirlo en Go es donde más fácil se cuela una regresión silenciosa —
 detección automática de la fila de encabezados, búsqueda flexible de la fila
 `BIAC-BIAE`, homologación de columnas, orden de los ajustes. **No dar por bueno
 el parser en Go hasta que reproduzca esos números con los mismos archivos.**
+
+Reproducidos: por el parser en Go, por el servicio, y end to end contra las
+bases de dev (23 operadores, los 23 nombres resueltos).
+
+---
+
+## Tests
+
+`make test` corre todo. Los de integración se saltean solos si no hay
+credenciales, así que sin VPN también pasa.
+
+**Por qué hay tests con sqlmock además de los de integración.** `file-compiler`
+y `calculator-prices` son RDS externos: el CI de bia-bills no los alcanza —su
+`docker-compose` levanta la base *del servicio*, con migraciones, y las nuestras
+no viven ahí. Sin los de sqlmock, `repositories` y `providers/postgres`
+reportarían 0% allá y SonarQube tumba el PR.
+
+| paquete | sin base | con base |
+|---|---|---|
+| `controllers` | 89.5% | 89.5% |
+| `models` | 100% | 100% |
+| `providers/postgres` | 34.8% | 91.3% |
+| `repositories` | 100% | 100% |
+| `router` | 100% | 100% |
+| `services/cargos_str` | 94.5% | 94.5% |
+
+El resto de `providers/postgres` es el código que abre conexiones de verdad; no
+se puede cubrir sin base y no debería.
+
+Lo que cada uno protege:
+
+- **`router`** — los paths exactos del `endpoints.ts` del front. Es el único
+  test que se queja si renombrar una ruta rompe la pantalla de Cargos STR.
+- **`repositories`** — el `DISTINCT ON` en toda lectura. Sin él se suman las
+  cargas viejas con las nuevas y los montos se **duplican**; con cifras de mil
+  millones eso no se ve en pantalla. También fija `IN (?)` (ver más abajo) y a
+  qué base va cada escritura.
+- **`services/cargos_str`** — el test dorado contra los archivos reales de
+  `testdata/`, versionados a propósito.
+- **`models`** — los `TableName`, y que los ajustes sean punteros: `NULL` es "ese
+  archivo de refactura no vino" y `0` es "vino en cero".
+
+**Los tests se validaron por mutación.** Se rompió el código a mano en seis
+puntos —quitar el `DISTINCT ON`, volver al `ANY(?)`, cruzar las bases de
+escritura, cambiar un path, errar un nombre de tabla, sacar el filtro de
+`OPERADOR DE RED`— y los seis dieron rojo. Vale repetirlo al tocar estas
+consultas: un test que no falla cuando debería es peor que no tener test.
+
+### Tres trampas que ya costaron una sesión cada una
+
+1. **GORM no expande slices en `= ANY(?)`.** Genera `ANY('CMMD','CSID',…)` y
+   Postgres responde `syntax error at or near ","`. Va `IN (?)`. Estaba en cuatro
+   consultas y el síntoma era traicionero: el preview devolvía 200 con los montos
+   correctos y los nombres vacíos.
+2. **El orden de iteración de un mapa en Go es aleatorio.** Un encabezado con dos
+   códigos atribuía el monto a un operador distinto en cada corrida. El parser
+   recorre `codigosOrdenados`, no el mapa.
+3. **`"$ 1.000"` vale 1, no 1000.** El punto es decimal y la coma es de miles.
+   Es idéntico al parser TypeScript y es lo correcto para `RawCellValue`, donde
+   Excel entrega los montos crudos. No "arreglarlo" sin leer el test.
+
+### Nota del Makefile
+
+Los targets usan `$(PKGS)`, no `./...`: la dependencia npm `flatted` trae una
+implementación en Go que `./...` levantaba. En bia-bills no pasa —no hay
+`node_modules`— así que al trasvasar da igual.

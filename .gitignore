@@ -67,3 +67,15 @@ env/
 
 # Claude Code local config
 .claude/settings.local.json
+
+# ─── Go (port del backend a Go, espejo de bia-bills) ────────────────────────
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+cover.out
+coverage.out
+*coverage.out
+__debug_bin*

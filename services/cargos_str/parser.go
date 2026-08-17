@@ -91,15 +91,25 @@ var homologation = map[string]string{
 	"ENDD": "ENEL",
 }
 
-// AgentCodes son los códigos que el parser busca en los encabezados.
-func AgentCodes() []string {
+// codigosOrdenados es el orden en que se buscan los códigos en un encabezado.
+//
+// Tiene que ser DETERMINÍSTICO: el orden de iteración de un mapa en Go es
+// aleatorio, así que recorrer `homologation` directamente hacía que, si una celda
+// de encabezado contuviera dos códigos, cuál gana cambiara entre ejecuciones — y
+// el monto quedaría atribuido a un operador distinto cada vez.
+//
+// No es hipotético: estos archivos traen celdas descriptivas con varios códigos
+// juntos ("Reporte ... CMMD CSID CSSD"), y de hecho detectHeaderRow existe para
+// no elegir una de esas como encabezado. Pero si alguna se colara, el resultado
+// tiene que ser reproducible.
+var codigosOrdenados = func() []string {
 	codes := make([]string, 0, len(homologation))
 	for code := range homologation {
 		codes = append(codes, code)
 	}
 	sort.Strings(codes)
 	return codes
-}
+}()
 
 // Homologation expone el mapa para resolver nombres contra public.agents.
 func Homologation() map[string]string {
@@ -209,7 +219,7 @@ func detectHeaderRow(matrix [][]string) int {
 		conCodigo := 0
 		for _, celda := range matrix[i] {
 			texto := strings.ToUpper(celda)
-			for code := range homologation {
+			for _, code := range codigosOrdenados {
 				if strings.Contains(texto, code) {
 					conCodigo++
 					break
@@ -308,12 +318,12 @@ func extractByOperator(file UploadedFile, sheets []string, warnings *[]string) m
 			}
 			headerUpper := strings.ToUpper(strings.TrimSpace(header))
 
-			for code, operador := range homologation {
+			for _, code := range codigosOrdenados {
 				if !strings.Contains(headerUpper, code) {
 					continue
 				}
 				if valor, ok := toNum(biacRow[j]); ok {
-					valores[operador] += valor
+					valores[homologation[code]] += valor
 				}
 				break
 			}

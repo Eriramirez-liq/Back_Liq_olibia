@@ -1,0 +1,48 @@
+# Todo lo que no debe entrar al contexto de build ni a la imagen.
+
+node_modules
+.next
+out
+build
+
+# Secretos y config local — las variables las inyecta cactus en runtime.
+.env
+.env.*
+!.env.example
+
+.git
+.github
+.claude
+.vscode
+.idea
+
+# Datos y utilidades que no hacen falta para correr el servicio.
+archivos_ejemplo
+_dev
+_referencia
+mejoras
+docs
+services
+api
+run.py
+requirements.txt
+instance
+__pycache__
+*.py[cod]
+.pytest_cache
+.coverage
+htmlcov
+
+# Artefactos de test y build
+coverage
+*.tsbuildinfo
+dev.db
+*.sqlite3
+
+# Específicos de Vercel: el servicio ya no se despliega ahí.
+.vercel
+.vercelignore
+vercel.json
+
+npm-debug.log*
+.DS_Store

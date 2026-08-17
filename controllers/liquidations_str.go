@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -175,18 +176,42 @@ func (controller LiquidationsStrController) Periods(c *gin.Context) {
 	c.JSON(http.StatusOK, periodos)
 }
 
+// periodoDelRequest lee el período del filtro de Nueva carga.
+//
+// Los mensajes distinguen "no vino" de "está fuera de rango" a propósito: son
+// causas distintas y decirlas juntas obliga a adivinar de qué lado está el
+// problema.
 func periodoDelRequest(c *gin.Context) (int, int, error) {
-	year, err := strconv.Atoi(c.PostForm("year"))
-	if err != nil || year < 2000 || year > 2100 {
-		return 0, 0, errParametro("year")
+	year, err := enteroDelForm(c, "year", 2000, 2100)
+	if err != nil {
+		return 0, 0, err
 	}
 
-	month, err := strconv.Atoi(c.PostForm("month"))
-	if err != nil || month < 1 || month > 12 {
-		return 0, 0, errParametro("month")
+	month, err := enteroDelForm(c, "month", 1, 12)
+	if err != nil {
+		return 0, 0, err
 	}
 
 	return year, month, nil
+}
+
+func enteroDelForm(c *gin.Context, campo string, minimo, maximo int) (int, error) {
+	crudo := strings.TrimSpace(c.PostForm(campo))
+	if crudo == "" {
+		return 0, errParametro("falta el parámetro " + campo)
+	}
+
+	valor, err := strconv.Atoi(crudo)
+	if err != nil {
+		return 0, errParametro(fmt.Sprintf("%s = %q no es un número", campo, crudo))
+	}
+
+	if valor < minimo || valor > maximo {
+		return 0, errParametro(fmt.Sprintf("%s = %d está fuera del rango admitido (%d a %d)",
+			campo, valor, minimo, maximo))
+	}
+
+	return valor, nil
 }
 
 func listaDelQuery(c *gin.Context, clave string) []string {
@@ -208,6 +233,4 @@ func listaDelQuery(c *gin.Context, clave string) []string {
 
 type errParametro string
 
-func (e errParametro) Error() string {
-	return "parámetro " + string(e) + " inválido o ausente"
-}
+func (e errParametro) Error() string { return string(e) }

@@ -108,11 +108,11 @@ func (repository liquidationsStrRepository) CurrentCharges(ctx context.Context, 
 	args := []any{}
 
 	if len(filter.Periods) > 0 {
-		condiciones += " AND period = ANY(?)"
+		condiciones += " AND period IN (?)"
 		args = append(args, filter.Periods)
 	}
 	if len(filter.OperatorCodes) > 0 {
-		condiciones += " AND operator_code = ANY(?)"
+		condiciones += " AND operator_code IN (?)"
 		args = append(args, filter.OperatorCodes)
 	}
 
@@ -141,7 +141,7 @@ func (repository liquidationsStrRepository) TotalsByPeriod(ctx context.Context, 
 	query := fmt.Sprintf(`
 		SELECT period, COALESCE(SUM(amount_payable), 0) AS total
 		  FROM (%s) AS vigentes
-		 WHERE period = ANY(?)
+		 WHERE period IN (?)
 		 GROUP BY period`,
 		vigentes("period, operator_code, amount_payable, created_at, id"))
 

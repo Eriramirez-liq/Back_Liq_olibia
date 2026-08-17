@@ -55,7 +55,7 @@ func (repository liquidationsAgentsRepository) NamesByOperator(
 		WithContext(ctx).
 		Raw(`SELECT upper(trim(code)) AS code, name
 		       FROM public.agents
-		      WHERE upper(trim(code)) = ANY(?)
+		      WHERE upper(trim(code)) IN (?)
 		        AND activity = ?
 		        AND deleted_at IS NULL`, codigos, actividadOperadorDeRed).
 		Scan(&filas).Error

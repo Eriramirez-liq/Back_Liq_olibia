@@ -180,11 +180,27 @@ func adjustmentOrder(filename string) int {
 	return n*100 + month
 }
 
-// toNum limpia el valor de una celda y lo pasa a número. Devuelve ok=false
-// cuando la celda está vacía o no tiene nada numérico.
+// toNum pasa el valor de una celda a número. Devuelve ok=false cuando la celda
+// está vacía o no tiene nada numérico.
+//
+// Se intenta primero tal cual, porque con RawCellValue los valores vienen en
+// notación de máquina — incluida la CIENTÍFICA. Limpiar antes rompía justamente
+// esos: de "-5.0623e-05" se borraba la "e", quedaba "-5.0623-05", no parseaba, y
+// el valor se descartaba EN SILENCIO como si la celda estuviera vacía.
+//
+// Acá eso significaría que un ajuste de refactura chico no se resta, y el valor a
+// pagar sale creíble y equivocado. Se encontró portando Tarifas SDL, donde el
+// mismo error se comía sumandos del CDI.
+//
+// Solo si no parsea se trata como texto con formato humano: símbolo de moneda,
+// separador de miles.
 func toNum(raw string) (float64, bool) {
 	if raw == "" {
 		return 0, false
+	}
+
+	if valor, err := strconv.ParseFloat(strings.TrimSpace(raw), 64); err == nil {
+		return valor, true
 	}
 
 	limpio := strings.TrimSpace(numericJunk.ReplaceAllString(raw, ""))

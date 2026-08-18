@@ -5,6 +5,7 @@ import (
 	"bia-bills/providers/postgres"
 	"bia-bills/repositories"
 	"bia-bills/services/cargos_str"
+	"bia-bills/services/tarifas_sdl"
 
 	"github.com/gin-gonic/gin"
 )
@@ -31,12 +32,16 @@ func RegisterLiquidations(apiPrefix *gin.RouterGroup) {
 	strRepository := repositories.NewLiquidationsStrRepository(db)
 	agentsRepository := repositories.NewLiquidationsAgentsRepository(db)
 
+	sdlRepository := repositories.NewLiquidationsSdlRepository(db)
+
 	// ── Services ────────────────────────────────────────────────────────────
 	cargosStrService := cargos_str.NewCargosStrService(strRepository, agentsRepository)
+	tarifasSdlService := tarifas_sdl.NewTarifasSdlService(sdlRepository, agentsRepository)
 
 	// ── Controllers ─────────────────────────────────────────────────────────
 	healthController := controllers.NewLiquidationsHealthController(db)
 	cargosStrController := controllers.NewLiquidationsStrController(cargosStrService)
+	tarifasSdlController := controllers.NewLiquidationsSdlController(tarifasSdlService)
 
 	// ── Rutas ───────────────────────────────────────────────────────────────
 	liquidationsGroup := apiPrefix.Group("/liquidations")
@@ -48,4 +53,13 @@ func RegisterLiquidations(apiPrefix *gin.RouterGroup) {
 	cargosStrGroup.GET("", cargosStrController.Charges)
 	cargosStrGroup.GET("/periods", cargosStrController.Periods)
 	cargosStrGroup.GET("/loads", cargosStrController.Loads)
+
+	tarifasSdlGroup := liquidationsGroup.Group("/tarifas-sdl")
+	tarifasSdlGroup.POST("/preview", tarifasSdlController.Preview)
+	tarifasSdlGroup.POST("/confirm", tarifasSdlController.Confirm)
+	tarifasSdlGroup.GET("", tarifasSdlController.Rates)
+	tarifasSdlGroup.GET("/periods", tarifasSdlController.Periods)
+	tarifasSdlGroup.GET("/loads", tarifasSdlController.Loads)
+	// Diagnóstico: recalcula desde los componentes guardados y compara.
+	tarifasSdlGroup.GET("/audit", tarifasSdlController.Audit)
 }

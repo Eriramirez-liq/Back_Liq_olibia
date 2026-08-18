@@ -244,6 +244,10 @@ func (f *agentsRepoEspia) NamesByOperator(context.Context, map[string]string) (m
 	return map[string]string{}, nil
 }
 
+func (f *agentsRepoEspia) NamesByAgentCode(context.Context, []string) (map[string]string, error) {
+	return nil, nil
+}
+
 func TestServicio_LasLecturasPropaganElError(t *testing.T) {
 	casos := map[string]func(cargos_str.CargosStrService) error{
 		"CurrentCharges": func(s cargos_str.CargosStrService) error {

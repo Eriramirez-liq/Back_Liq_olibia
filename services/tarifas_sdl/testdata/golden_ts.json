@@ -1,0 +1,743 @@
+{
+  "archivos": 33,
+  "alertas": [],
+  "erroresCriticos": [],
+  "orsSinDatos": [],
+  "filas": [
+    {
+      "or_codigo": "AIRE",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 80.67101616993997,
+      "tarifa_reactiva": 127.343406696
+    },
+    {
+      "or_codigo": "AIRE",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 69.31418330193998,
+      "tarifa_reactiva": 115.986573828
+    },
+    {
+      "or_codigo": "AIRE",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 57.95735043393998,
+      "tarifa_reactiva": 104.62974096
+    },
+    {
+      "or_codigo": "AIRE",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 44.69803289725683,
+      "tarifa_reactiva": 85.923755443
+    },
+    {
+      "or_codigo": "AIRE",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 22.59701417731106,
+      "tarifa_reactiva": 63.452204123
+    },
+    {
+      "or_codigo": "AFINIA",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 130.95150666770212,
+      "tarifa_reactiva": 177.48028633
+    },
+    {
+      "or_codigo": "AFINIA",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 116.00931194270211,
+      "tarifa_reactiva": 162.538091605
+    },
+    {
+      "or_codigo": "AFINIA",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 101.06711721770212,
+      "tarifa_reactiva": 147.59589688
+    },
+    {
+      "or_codigo": "AFINIA",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 82.00891574056396,
+      "tarifa_reactiva": 123.153385046
+    },
+    {
+      "or_codigo": "AFINIA",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 51.91026661104826,
+      "tarifa_reactiva": 92.761164853
+    },
+    {
+      "or_codigo": "EEP_PEREIRA",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 179.67315102930084,
+      "tarifa_reactiva": 217.506608718
+    },
+    {
+      "or_codigo": "EEP_PEREIRA",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 157.67757857280083,
+      "tarifa_reactiva": 195.5110362615
+    },
+    {
+      "or_codigo": "EEP_PEREIRA",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 135.68200611630084,
+      "tarifa_reactiva": 173.515463805
+    },
+    {
+      "or_codigo": "EEP_PEREIRA",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 115.17163274949898,
+      "tarifa_reactiva": 149.997330525
+    },
+    {
+      "or_codigo": "EEP_PEREIRA",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 34.20172281376662,
+      "tarifa_reactiva": 68.759262717
+    },
+    {
+      "or_codigo": "EEP_CARTAGO",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 191.27782343835392,
+      "tarifa_reactiva": 229.992393951
+    },
+    {
+      "or_codigo": "EEP_CARTAGO",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 171.94932371085392,
+      "tarifa_reactiva": 210.6638942235
+    },
+    {
+      "or_codigo": "EEP_CARTAGO",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 152.62082398335392,
+      "tarifa_reactiva": 191.335394496
+    },
+    {
+      "or_codigo": "EEP_CARTAGO",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 117.33663813501127,
+      "tarifa_reactiva": 152.37642158
+    },
+    {
+      "or_codigo": "EEP_CARTAGO",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 65.0390382884553,
+      "tarifa_reactiva": 99.742732376
+    },
+    {
+      "or_codigo": "EMCALI",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 149.04943760544725,
+      "tarifa_reactiva": 186.54892136
+    },
+    {
+      "or_codigo": "EMCALI",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 131.48075214344726,
+      "tarifa_reactiva": 168.98023589800002
+    },
+    {
+      "or_codigo": "EMCALI",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 113.91206668144726,
+      "tarifa_reactiva": 151.41155043600003
+    },
+    {
+      "or_codigo": "EMCALI",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 92.83042924205151,
+      "tarifa_reactiva": 127.83994731
+    },
+    {
+      "or_codigo": "EMCALI",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 41.435228607620296,
+      "tarifa_reactiva": 76.304161476
+    },
+    {
+      "or_codigo": "ENEL",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 213.4972515763368,
+      "tarifa_reactiva": 252.00336343
+    },
+    {
+      "or_codigo": "ENEL",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 188.63373062633679,
+      "tarifa_reactiva": 227.13984248
+    },
+    {
+      "or_codigo": "ENEL",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 163.77020967633678,
+      "tarifa_reactiva": 202.27632153000002
+    },
+    {
+      "or_codigo": "ENEL",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 137.2339731789729,
+      "tarifa_reactiva": 172.05119952
+    },
+    {
+      "or_codigo": "ENEL",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 81.92367196661922,
+      "tarifa_reactiva": 116.685760641
+    },
+    {
+      "or_codigo": "EPM",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 260.40089120105824,
+      "tarifa_reactiva": 299.041137963
+    },
+    {
+      "or_codigo": "EPM",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 228.57357231355823,
+      "tarifa_reactiva": 267.2138190755
+    },
+    {
+      "or_codigo": "EPM",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 196.74625342605825,
+      "tarifa_reactiva": 235.38650018799999
+    },
+    {
+      "or_codigo": "EPM",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 161.43713737954647,
+      "tarifa_reactiva": 196.054934449
+    },
+    {
+      "or_codigo": "EPM",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 57.32740194087352,
+      "tarifa_reactiva": 91.735738222
+    },
+    {
+      "or_codigo": "CEDENAR",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 239.08546728754283,
+      "tarifa_reactiva": 277.585545607544
+    },
+    {
+      "or_codigo": "CEDENAR",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 210.9447751650428,
+      "tarifa_reactiva": 249.444853485044
+    },
+    {
+      "or_codigo": "CEDENAR",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 182.80408304254283,
+      "tarifa_reactiva": 221.30416136254402
+    },
+    {
+      "or_codigo": "CEDENAR",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 130.4833268363567,
+      "tarifa_reactiva": 165.371076110758
+    },
+    {
+      "or_codigo": "CEDENAR",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 62.36782528791418,
+      "tarifa_reactiva": 96.698906875601
+    },
+    {
+      "or_codigo": "CELSIA_VALLE",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 239.25037959951308,
+      "tarifa_reactiva": 277.585545607544
+    },
+    {
+      "or_codigo": "CELSIA_VALLE",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 204.66484385401307,
+      "tarifa_reactiva": 243.000009862044
+    },
+    {
+      "or_codigo": "CELSIA_VALLE",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 170.0793081085131,
+      "tarifa_reactiva": 208.414474116544
+    },
+    {
+      "or_codigo": "CELSIA_VALLE",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 130.15506147397497,
+      "tarifa_reactiva": 165.371076110758
+    },
+    {
+      "or_codigo": "CELSIA_VALLE",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 61.80618480485299,
+      "tarifa_reactiva": 96.698906875601
+    },
+    {
+      "or_codigo": "CELSIA_TOLIMA",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 248.3582489993203,
+      "tarifa_reactiva": 288.031055264276
+    },
+    {
+      "or_codigo": "CELSIA_TOLIMA",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 197.8963112763203,
+      "tarifa_reactiva": 237.569117541276
+    },
+    {
+      "or_codigo": "CELSIA_TOLIMA",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 147.4343735533203,
+      "tarifa_reactiva": 187.107179818276
+    },
+    {
+      "or_codigo": "CELSIA_TOLIMA",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 150.54617733436808,
+      "tarifa_reactiva": 186.428884723646
+    },
+    {
+      "or_codigo": "CELSIA_TOLIMA",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 82.20519250620444,
+      "tarifa_reactiva": 117.29292970558
+    },
+    {
+      "or_codigo": "CENS",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 276.8836693988204,
+      "tarifa_reactiva": 315.703440516534
+    },
+    {
+      "or_codigo": "CENS",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 250.84427726232042,
+      "tarifa_reactiva": 289.664048380034
+    },
+    {
+      "or_codigo": "CENS",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 224.80488512582042,
+      "tarifa_reactiva": 263.624656243534
+    },
+    {
+      "or_codigo": "CENS",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 171.13976886913372,
+      "tarifa_reactiva": 206.070963534222
+    },
+    {
+      "or_codigo": "CENS",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 55.685809998860336,
+      "tarifa_reactiva": 90.666206012323
+    },
+    {
+      "or_codigo": "CEO",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 238.91753432507042,
+      "tarifa_reactiva": 277.585545607544
+    },
+    {
+      "or_codigo": "CEO",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 192.98826628707042,
+      "tarifa_reactiva": 231.65627756954402
+    },
+    {
+      "or_codigo": "CEO",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 147.05899824907044,
+      "tarifa_reactiva": 185.727009531544
+    },
+    {
+      "or_codigo": "CEO",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 130.35293842059485,
+      "tarifa_reactiva": 165.371076110758
+    },
+    {
+      "or_codigo": "CEO",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 62.04923976832881,
+      "tarifa_reactiva": 96.698906875601
+    },
+    {
+      "or_codigo": "CETSA",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 239.44612055787724,
+      "tarifa_reactiva": 277.585545607544
+    },
+    {
+      "or_codigo": "CETSA",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 212.63752123287725,
+      "tarifa_reactiva": 250.77694628254403
+    },
+    {
+      "or_codigo": "CETSA",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 185.82892190787723,
+      "tarifa_reactiva": 223.96834695754401
+    },
+    {
+      "or_codigo": "CETSA",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 130.18364256317005,
+      "tarifa_reactiva": 165.371076110758
+    },
+    {
+      "or_codigo": "CETSA",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 62.014653622233496,
+      "tarifa_reactiva": 96.698906875601
+    },
+    {
+      "or_codigo": "CHEC",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 277.60142735149583,
+      "tarifa_reactiva": 315.703440516534
+    },
+    {
+      "or_codigo": "CHEC",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 240.30426371899583,
+      "tarifa_reactiva": 278.406276884034
+    },
+    {
+      "or_codigo": "CHEC",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 203.00710008649583,
+      "tarifa_reactiva": 241.10911325153398
+    },
+    {
+      "or_codigo": "CHEC",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 170.91234075738862,
+      "tarifa_reactiva": 206.070963534222
+    },
+    {
+      "or_codigo": "CHEC",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 56.14370010229153,
+      "tarifa_reactiva": 90.666206012323
+    },
+    {
+      "or_codigo": "EBSA",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 248.70438498819536,
+      "tarifa_reactiva": 288.031055264276
+    },
+    {
+      "or_codigo": "EBSA",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 206.31481205169536,
+      "tarifa_reactiva": 245.641482327776
+    },
+    {
+      "or_codigo": "EBSA",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 163.92523911519538,
+      "tarifa_reactiva": 203.251909391276
+    },
+    {
+      "or_codigo": "EBSA",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 151.47337385935688,
+      "tarifa_reactiva": 186.428884723646
+    },
+    {
+      "or_codigo": "EBSA",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 82.59595398977801,
+      "tarifa_reactiva": 117.29292970558
+    },
+    {
+      "or_codigo": "EDEQ",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 277.49359122753964,
+      "tarifa_reactiva": 315.703440516534
+    },
+    {
+      "or_codigo": "EDEQ",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 252.03969690803964,
+      "tarifa_reactiva": 290.24954619703396
+    },
+    {
+      "or_codigo": "EDEQ",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 226.58580258853965,
+      "tarifa_reactiva": 264.795651877534
+    },
+    {
+      "or_codigo": "EDEQ",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 170.94082806979867,
+      "tarifa_reactiva": 206.070963534222
+    },
+    {
+      "or_codigo": "EDEQ",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 56.077074631938196,
+      "tarifa_reactiva": 90.666206012323
+    },
+    {
+      "or_codigo": "ELECTROHUILA",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 249.35923292414367,
+      "tarifa_reactiva": 288.031055264276
+    },
+    {
+      "or_codigo": "ELECTROHUILA",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 223.65579153564366,
+      "tarifa_reactiva": 262.327613875776
+    },
+    {
+      "or_codigo": "ELECTROHUILA",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 197.95235014714368,
+      "tarifa_reactiva": 236.624172487276
+    },
+    {
+      "or_codigo": "ELECTROHUILA",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 151.33807311725775,
+      "tarifa_reactiva": 186.428884723646
+    },
+    {
+      "or_codigo": "ELECTROHUILA",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 82.7388964046615,
+      "tarifa_reactiva": 117.29292970558
+    },
+    {
+      "or_codigo": "EMSA",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 233.84982197637197,
+      "tarifa_reactiva": 272.452078030608
+    },
+    {
+      "or_codigo": "EMSA",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 216.06339286387197,
+      "tarifa_reactiva": 254.665648918108
+    },
+    {
+      "or_codigo": "EMSA",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 198.27696375137197,
+      "tarifa_reactiva": 236.879219805608
+    },
+    {
+      "or_codigo": "EMSA",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 150.1747347825416,
+      "tarifa_reactiva": 185.544500246574
+    },
+    {
+      "or_codigo": "EMSA",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 54.90863685714944,
+      "tarifa_reactiva": 89.760083314896
+    },
+    {
+      "or_codigo": "ENERCA",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 233.76862434747352,
+      "tarifa_reactiva": 272.452078030608
+    },
+    {
+      "or_codigo": "ENERCA",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 196.9514389729735,
+      "tarifa_reactiva": 235.63489265610798
+    },
+    {
+      "or_codigo": "ENERCA",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 160.13425359847352,
+      "tarifa_reactiva": 198.817707281608
+    },
+    {
+      "or_codigo": "ENERCA",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 150.79902215715978,
+      "tarifa_reactiva": 185.544500246574
+    },
+    {
+      "or_codigo": "ENERCA",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 55.40475659489639,
+      "tarifa_reactiva": 89.760083314896
+    },
+    {
+      "or_codigo": "ESSA",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 276.5681963371158,
+      "tarifa_reactiva": 315.703440516534
+    },
+    {
+      "or_codigo": "ESSA",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 233.00007754111581,
+      "tarifa_reactiva": 272.13532172053397
+    },
+    {
+      "or_codigo": "ESSA",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 189.43195874511582,
+      "tarifa_reactiva": 228.567202924534
+    },
+    {
+      "or_codigo": "ESSA",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 170.83358967014544,
+      "tarifa_reactiva": 206.070963534222
+    },
+    {
+      "or_codigo": "ESSA",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 55.97135138481546,
+      "tarifa_reactiva": 90.666206012323
+    },
+    {
+      "or_codigo": "RUITOQUE",
+      "nivel_tension": "1",
+      "propiedad_activos": "OR",
+      "tarifa_activa": 277.70470095874947,
+      "tarifa_reactiva": 315.703440516534
+    },
+    {
+      "or_codigo": "RUITOQUE",
+      "nivel_tension": "1",
+      "propiedad_activos": "COMPARTIDO",
+      "tarifa_activa": 254.73343342324947,
+      "tarifa_reactiva": 292.732172981034
+    },
+    {
+      "or_codigo": "RUITOQUE",
+      "nivel_tension": "1",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 231.76216588774946,
+      "tarifa_reactiva": 269.760905445534
+    },
+    {
+      "or_codigo": "RUITOQUE",
+      "nivel_tension": "2",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 171.7087033775232,
+      "tarifa_reactiva": 206.070963534222
+    },
+    {
+      "or_codigo": "RUITOQUE",
+      "nivel_tension": "3",
+      "propiedad_activos": "USUARIO",
+      "tarifa_activa": 56.976917491323,
+      "tarifa_reactiva": 90.666206012323
+    }
+  ]
+}

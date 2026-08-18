@@ -36,3 +36,30 @@ func TestAjustesSonPunterosParaDistinguirNullDeCero(t *testing.T) {
 		t.Error("un ajuste que no vino tiene que quedar en nil, no en cero")
 	}
 }
+
+// Lo mismo para Tarifas SDL. Las dos tablas viven en bases distintas y se llaman
+// parecido, así que confundirlas es fácil y el error no se ve hasta buscar los
+// datos.
+func TestTableNamesSdl(t *testing.T) {
+	if got := (models.LiquidationsSdlInput{}).TableName(); got != "public.liquidations_sdl_inputs" {
+		t.Errorf("tabla de componentes = %q", got)
+	}
+	if got := (models.LiquidationsSdlRate{}).TableName(); got != "public.liquidations_sdl_rates" {
+		t.Errorf("tabla de tarifas = %q", got)
+	}
+}
+
+// El área y los cargos del ADD son punteros porque NULL significa "este operador
+// toma el NT de su propio archivo", que es distinto de un cargo en cero. La base
+// tiene un CHECK que exige que estén o falten juntos.
+func TestSdlPunterosDistinguenNoAplicaDeCero(t *testing.T) {
+	cero := 0.0
+	fila := models.LiquidationsSdlInput{DT1Add: &cero}
+
+	if fila.DT1Add == nil || *fila.DT1Add != 0 {
+		t.Error("un cargo del ADD en cero tiene que poder guardarse como cero")
+	}
+	if fila.DT2Add != nil || fila.DistributionArea != nil {
+		t.Error("lo que no aplica tiene que quedar en nil, no en cero ni en cadena vacía")
+	}
+}

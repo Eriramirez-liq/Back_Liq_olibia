@@ -187,6 +187,14 @@ func TestParser_ValoresDeCelda(t *testing.T) {
 		{"punto como decimal", "1.5", 1.5},
 		{"símbolo de moneda y espacios se descartan", "$ 4442  ", 4442},
 		{"formato colombiano se lee como decimal", "1.000", 1}, // documenta el límite
+
+		// Notación científica: excelize la devuelve así para valores muy chicos o
+		// muy grandes. Antes se descartaba en silencio —al quitar la "e" quedaba
+		// "1.5-05", que no parsea— y la celda se trataba como vacía. Un ajuste de
+		// refactura chico dejaba de restarse sin que nada fallara.
+		{"científica positiva", "1.5e+06", 1_500_000},
+		{"científica negativa", "-5.0623e-05", -0.000050623},
+		{"científica con E mayúscula", "2.5E+03", 2500},
 	}
 
 	for _, caso := range casos {

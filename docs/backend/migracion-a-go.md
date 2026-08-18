@@ -224,6 +224,53 @@ bases de dev (23 operadores, los 23 nombres resueltos).
 
 ---
 
+## Cómo probar el front contra el backend en Go local
+
+El front apunta por defecto a `https://olibia.dev.bia.app`, o sea al `bia-bills`
+**desplegado**. Un módulo recién portado todavía no está ahí, así que sus rutas
+devuelven 404 y la pantalla queda vacía.
+
+Para probar en localhost:
+
+**1. Levantar el harness** (requiere VPN, porque las bases están en la red de BIA):
+
+```bash
+cd Back_Liq_olibia
+export GO_ENVIRONMENT=production            # sin esto, GORM loguea cada consulta
+export liq_db_host=...  liq_db_port=5432    # los mismos DB_HOST / DB_USER2 del .env
+export liq_db_user=...  liq_db_password=...
+export LIQ_DEV_PORT=4110
+go run ./cmd/liquidations-dev
+```
+
+Verificar que responde:
+
+```bash
+curl http://localhost:4110/ms-bill/liquidations/health
+# {"ok":true,"bases":[{"base":"file-compiler","ok":true},{"base":"calculator-prices","ok":true}]}
+```
+
+**2. Apuntar el front al harness**, en `olibia-web/.env.local`:
+
+```
+NEXT_PUBLIC_BACKEND_URL=http://localhost:4110
+```
+
+**3. `npm run dev`** en el front y entrar normal.
+
+### La contrapartida, que hay que tener presente
+
+Esa variable manda **todo** el tráfico de `/ms-bill` al harness, y el harness solo
+tiene las rutas de Liquidaciones. O sea que **el módulo de Facturación deja de
+funcionar en local** mientras esté apuntado ahí. Es aceptable para probar un
+módulo migrado; para volver, se comenta la línea y vuelve a dev.
+
+El harness **no tiene el middleware de autenticación** del gateway, así que no
+hace falta token para pegarle con `curl`. Por el front sí se pasa igual por
+`/api/proxy`, que inyecta el token de la cookie — y el harness lo ignora.
+
+---
+
 ## Tests
 
 `make test` corre todo. Los de integración se saltean solos si no hay

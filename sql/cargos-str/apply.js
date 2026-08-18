@@ -23,6 +23,7 @@
  *    node sql/cargos-str/apply.js calculator-prices
  *    node sql/cargos-str/apply.js all
  *    node sql/cargos-str/apply.js all --dry-run   (no se conecta)
+ *    node sql/cargos-str/apply.js all --modulo=tarifas-sdl
  *    node sql/cargos-str/apply.js --list-dbs      (qué bases hay en el servidor)
  * ========================================================================== */
 const fs = require('fs');
@@ -52,19 +53,28 @@ const ENV_FILES = [
   path.join(__dirname, '..', '..', '..', 'olibia-web', '.env'),
 ];
 
+// El módulo cuyos scripts se aplican. Cada uno vive en sql/<modulo>/<base>/.
+// Por defecto cargos-str, que es donde estaba este script cuando había un solo
+// módulo; con --modulo=<nombre> se apunta a otro sin duplicar el script.
+const MODULO_DEFAULT = 'cargos-str';
+const modulo =
+  (process.argv.slice(2).find((a) => a.startsWith('--modulo=')) || '').split('=')[1] ||
+  MODULO_DEFAULT;
+const SQL_ROOT = path.join(__dirname, '..');
+
 const TARGETS = {
   'file-compiler': {
     urlVar: 'FILE_COMPILER_DATABASE_URL',
     dbVar: 'FILE_COMPILER_DB_NAME',
     // El servidor ya es el de dev (c4-rds-bia-dev): las bases NO llevan prefijo.
     dbDefault: 'file-compiler',
-    dir: path.join(__dirname, 'file-compiler'),
+    dir: path.join(SQL_ROOT, modulo, 'file-compiler'),
   },
   'calculator-prices': {
     urlVar: 'CALCULATOR_PRICES_DATABASE_URL',
     dbVar: 'CALCULATOR_PRICES_DB_NAME',
     dbDefault: 'calculator-prices',
-    dir: path.join(__dirname, 'calculator-prices'),
+    dir: path.join(SQL_ROOT, modulo, 'calculator-prices'),
   },
 };
 
@@ -73,6 +83,7 @@ const TARGETS = {
 // olvidó la primera vez que pasó. Todos son idempotentes (IF NOT EXISTS), así
 // que volver a correrlos no hace nada.
 function scriptsDe(dir) {
+  if (!fs.existsSync(dir)) return [];
   return fs
     .readdirSync(dir)
     .filter(f => f.endsWith('.sql'))
@@ -166,7 +177,7 @@ async function listarBases() {
 
 async function aplicar(nombre, dryRun) {
   const target = TARGETS[nombre];
-  console.log(`\n===  ${nombre}  ===`);
+  console.log(`\n===  ${modulo} / ${nombre}  ===`);
 
   let resolved;
   try {
@@ -262,8 +273,11 @@ async function aplicar(nombre, dryRun) {
   const pedido = args.find((a) => !a.startsWith('--'));
 
   if (!pedido || (pedido !== 'all' && !TARGETS[pedido])) {
-    console.error('Uso: node sql/cargos-str/apply.js <file-compiler|calculator-prices|all> [--dry-run]');
+    console.error('Uso: node sql/cargos-str/apply.js <file-compiler|calculator-prices|all> [--modulo=<nombre>] [--dry-run]');
     console.error('     node sql/cargos-str/apply.js --list-dbs');
+    console.error('');
+    console.error('  --modulo   carpeta bajo sql/ con los scripts. Default: cargos-str.');
+    console.error('             Ej: --modulo=tarifas-sdl');
     process.exit(1);
   }
 

@@ -72,6 +72,12 @@ func (f agentsRepoFake) NamesByOperator(context.Context, map[string]string) (map
 	return f.nombres, f.err
 }
 
+// Cargos STR no la usa —resuelve por operador, no por agente— pero la interfaz
+// del repositorio la incluye porque Tarifas SDL sí la necesita.
+func (f agentsRepoFake) NamesByAgentCode(context.Context, []string) (map[string]string, error) {
+	return nil, nil
+}
+
 func metaDePrueba() cargos_str.LoadMeta {
 	return cargos_str.LoadMeta{
 		CreatedBy:   "Erika Ramírez",

@@ -59,16 +59,25 @@ const TARGETS = {
     // El servidor ya es el de dev (c4-rds-bia-dev): las bases NO llevan prefijo.
     dbDefault: 'file-compiler',
     dir: path.join(__dirname, 'file-compiler'),
-    files: ['001_liquidations_str_inputs.sql'],
   },
   'calculator-prices': {
     urlVar: 'CALCULATOR_PRICES_DATABASE_URL',
     dbVar: 'CALCULATOR_PRICES_DB_NAME',
     dbDefault: 'calculator-prices',
     dir: path.join(__dirname, 'calculator-prices'),
-    files: ['001_liquidations_str_charges.sql'],
   },
 };
+
+// Los .sql de cada carpeta, en orden numérico. Antes la lista estaba escrita a
+// mano acá y agregar un script nuevo significaba acordarse de sumarlo; se
+// olvidó la primera vez que pasó. Todos son idempotentes (IF NOT EXISTS), así
+// que volver a correrlos no hace nada.
+function scriptsDe(dir) {
+  return fs
+    .readdirSync(dir)
+    .filter(f => f.endsWith('.sql'))
+    .sort();
+}
 
 function parseEnv(file) {
   const out = {};
@@ -171,7 +180,7 @@ async function aplicar(nombre, dryRun) {
 
   if (dryRun) {
     let completo = true;
-    for (const f of target.files) {
+    for (const f of scriptsDe(target.dir)) {
       const existe = fs.existsSync(path.join(target.dir, f));
       if (!existe) completo = false;
       console.log(`  ${existe ? '->' : '!!'} ${f}${existe ? '' : '  (NO ENCONTRADO)'}`);
@@ -199,7 +208,7 @@ async function aplicar(nombre, dryRun) {
     return false;
   }
 
-  for (const f of target.files) {
+  for (const f of scriptsDe(target.dir)) {
     process.stdout.write(`  -> ${f} ... `);
     await client.query(fs.readFileSync(path.join(target.dir, f), 'utf8'));
     console.log('OK');

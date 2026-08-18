@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"bia-bills/models"
 	"bia-bills/providers/postgres"
@@ -37,6 +38,21 @@ type StrChargeFilter struct {
 	OperatorCodes []string
 }
 
+// StrLoad es un cargue del historial: una fila por load_id.
+//
+// No sale de una tabla de cargas —no existe— sino de agrupar los insumos por
+// load_id. Todo lo que hace falta ya está ahí: cuándo, quién, qué archivos y
+// cuántos operadores.
+type StrLoad struct {
+	LoadID      string    `json:"load_id"`
+	Period      string    `json:"period"`
+	CreatedAt   time.Time `json:"created_at"`
+	CreatedBy   string    `json:"created_by"`
+	CreatedByID string    `json:"created_by_id"`
+	SourceFiles string    `json:"source_files"`
+	Operators   int       `json:"operators"`
+}
+
 type LiquidationsStrRepository interface {
 	// InsertInputs guarda el desglose crudo en file-compiler.
 	InsertInputs(ctx context.Context, rows []models.LiquidationsStrInput) error
@@ -55,6 +71,10 @@ type LiquidationsStrRepository interface {
 	// PeriodsWithCharges lista los períodos que ya tienen datos, más reciente
 	// primero.
 	PeriodsWithCharges(ctx context.Context) ([]string, error)
+
+	// Loads devuelve el historial de cargues, más reciente primero. Sin períodos
+	// devuelve todos.
+	Loads(ctx context.Context, periods []string) ([]StrLoad, error)
 }
 
 type liquidationsStrRepository struct {
@@ -162,6 +182,43 @@ func (repository liquidationsStrRepository) TotalsByPeriod(ctx context.Context, 
 	}
 
 	return totales, nil
+}
+
+// Loads reconstruye el historial agrupando los insumos por cargue.
+//
+// Ojo: lee de file-compiler, NO de calculator-prices. Ahí está el insumo crudo
+// con sus metadatos, y ahí es donde un cargue existe aunque el resultado haya
+// fallado. (Hoy no puede pasar —el servicio hace rollback— pero la fuente de
+// verdad de "qué se cargó" es el insumo.)
+//
+// Los MAX() sobre los metadatos no son una agregación de verdad: todas las filas
+// de un cargue traen el mismo valor. Es la forma de traerlos con un GROUP BY.
+func (repository liquidationsStrRepository) Loads(ctx context.Context, periods []string) ([]StrLoad, error) {
+	condicion := ""
+	args := []any{}
+	if len(periods) > 0 {
+		condicion = " WHERE period IN (?)"
+		args = append(args, periods)
+	}
+
+	query := fmt.Sprintf(`
+		SELECT load_id,
+		       period,
+		       MIN(created_at)           AS created_at,
+		       MAX(created_by)           AS created_by,
+		       MAX(created_by_id)        AS created_by_id,
+		       MAX(source_files)         AS source_files,
+		       COUNT(*)                  AS operators
+		  FROM public.liquidations_str_inputs%s
+		 GROUP BY load_id, period
+		 ORDER BY MIN(created_at) DESC`, condicion)
+
+	res := []StrLoad{}
+	err := repository.db.Connection(postgres.LiqDBFileCompiler).
+		WithContext(ctx).
+		Raw(query, args...).Scan(&res).Error
+
+	return res, err
 }
 
 func (repository liquidationsStrRepository) PeriodsWithCharges(ctx context.Context) ([]string, error) {

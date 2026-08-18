@@ -48,6 +48,7 @@ func TestRegisterLiquidations_RutasDelContrato(t *testing.T) {
 		"POST /liquidations/cargos-str/confirm",
 		"GET /liquidations/cargos-str",
 		"GET /liquidations/cargos-str/periods",
+		"GET /liquidations/cargos-str/loads",
 	}
 
 	for _, ruta := range esperadas {

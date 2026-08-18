@@ -24,13 +24,30 @@ type CargosStrService interface {
 	// Preview parsea el lote y completa los nombres. No escribe nada.
 	Preview(ctx context.Context, files []UploadedFile, year, month int) (ParseResult, error)
 	// Confirm persiste el lote y devuelve el id de la carga.
-	Confirm(ctx context.Context, rows []StrRow) (string, error)
+	Confirm(ctx context.Context, rows []StrRow, meta LoadMeta) (string, error)
+	// Loads devuelve el historial de cargues, más reciente primero.
+	Loads(ctx context.Context, periods []string) ([]repositories.StrLoad, error)
 	// CurrentCharges devuelve el valor a pagar vigente por (período, operador).
 	CurrentCharges(ctx context.Context, filter repositories.StrChargeFilter) ([]repositories.StrCharge, error)
 	// TotalsByPeriod suma lo vigente de cada período.
 	TotalsByPeriod(ctx context.Context, periods []string) (map[string]float64, error)
 	// Periods lista los períodos con datos, más reciente primero.
 	Periods(ctx context.Context) ([]string, error)
+}
+
+// LoadMeta es lo que hace falta para que el cargue aparezca en el historial.
+//
+// Antes esto vivía en Supabase, escrito por el backend TypeScript. Al salir
+// Supabase del circuito, sin estos datos el módulo de Cargas se queda sin
+// historial ni estado del período.
+type LoadMeta struct {
+	// Nombre para mostrar. Lo manda el front, así que NO es una verificación de
+	// identidad; sirve para que el historial sea legible.
+	CreatedBy string
+	// Id del header x-user-id, puesto server-side. Este es el confiable.
+	CreatedByID string
+	// Nombres de los archivos del lote, en el orden en que llegaron.
+	SourceFiles []string
 }
 
 type cargosStrService struct {
@@ -101,7 +118,7 @@ func (service cargosStrService) Preview(
 // queda un insumo sin su resultado, ni un resultado a medias visible en la
 // matriz. Como el modelo es append-only, reintentar con un load_id nuevo es
 // seguro.
-func (service cargosStrService) Confirm(ctx context.Context, rows []StrRow) (string, error) {
+func (service cargosStrService) Confirm(ctx context.Context, rows []StrRow, meta LoadMeta) (string, error) {
 	ctx, span := tracing.StartSpan(ctx, "services.cargos_str.Confirm")
 	defer span.End()
 
@@ -142,6 +159,9 @@ func (service cargosStrService) Confirm(ctx context.Context, rows []StrRow) (str
 			Reinvoice1Amount: r.Reinvoice1Amount,
 			Reinvoice2Amount: r.Reinvoice2Amount,
 			Reinvoice3Amount: r.Reinvoice3Amount,
+			CreatedBy:        meta.CreatedBy,
+			CreatedByID:      meta.CreatedByID,
+			SourceFiles:      strings.Join(meta.SourceFiles, ", "),
 		})
 		cargos = append(cargos, models.LiquidationsStrCharge{
 			LoadID:        loadID,
@@ -186,6 +206,16 @@ func (service cargosStrService) TotalsByPeriod(
 	defer span.End()
 
 	return service.strRepository.TotalsByPeriod(ctx, periods)
+}
+
+func (service cargosStrService) Loads(
+	ctx context.Context,
+	periods []string,
+) ([]repositories.StrLoad, error) {
+	ctx, span := tracing.StartSpan(ctx, "services.cargos_str.Loads")
+	defer span.End()
+
+	return service.strRepository.Loads(ctx, periods)
 }
 
 func (service cargosStrService) Periods(ctx context.Context) ([]string, error) {

@@ -47,4 +47,5 @@ func RegisterLiquidations(apiPrefix *gin.RouterGroup) {
 	cargosStrGroup.POST("/confirm", cargosStrController.Confirm)
 	cargosStrGroup.GET("", cargosStrController.Charges)
 	cargosStrGroup.GET("/periods", cargosStrController.Periods)
+	cargosStrGroup.GET("/loads", cargosStrController.Loads)
 }

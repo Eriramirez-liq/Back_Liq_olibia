@@ -39,6 +39,12 @@ func NewLiquidationsStrController(service cargos_str.CargosStrService) Liquidati
 
 type confirmarRequest struct {
 	Rows []cargos_str.StrRow `json:"rows" binding:"required"`
+
+	// Metadatos del cargue, para que aparezca en el historial. Opcionales: si no
+	// vienen, el cargue se guarda igual y el historial lo muestra sin usuario ni
+	// archivos. Perder el historial no justifica rechazar una carga válida.
+	CreatedBy   string   `json:"created_by"`
+	SourceFiles []string `json:"source_files"`
 }
 
 // Preview parsea los archivos del lote y devuelve lo que se guardaría.
@@ -123,13 +129,41 @@ func (controller LiquidationsStrController) Confirm(c *gin.Context) {
 		return
 	}
 
-	loadID, err := controller.service.Confirm(ctx, body.Rows)
+	// El id del usuario sale del header, no del cuerpo: es el único dato de
+	// identidad que no puede falsear quien arma el request.
+	meta := cargos_str.LoadMeta{
+		CreatedBy:   body.CreatedBy,
+		CreatedByID: c.GetHeader("x-user-id"),
+		SourceFiles: body.SourceFiles,
+	}
+
+	loadID, err := controller.service.Confirm(ctx, body.Rows, meta)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ginCommons.NewInternalServerError(err.Error()))
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"load_id": loadID, "rows": len(body.Rows)})
+}
+
+// Loads devuelve el historial de cargues.
+//
+// Alimenta el historial de cargas y el estado del período del módulo de Cargas,
+// que antes leían de Supabase.
+//
+// GET /liquidations/cargos-str/loads?periods=2026-07,2026-06
+func (controller LiquidationsStrController) Loads(c *gin.Context) {
+	ctx := contextBia.RequestContext(c)
+	ctx, span := tracing.StartSpan(ctx, "controllers.LiquidationsStrController.Loads")
+	defer span.End()
+
+	cargues, err := controller.service.Loads(ctx, listaDelQuery(c, "periods"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ginCommons.NewInternalServerError(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"loads": cargues})
 }
 
 // Charges devuelve el valor a pagar vigente por (período, operador).

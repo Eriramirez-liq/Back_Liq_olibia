@@ -29,12 +29,15 @@ type servicioFake struct {
 	loadID    string
 	cargos    []repositories.StrCharge
 	periodos  []string
+	cargues   []repositories.StrLoad
 	err       error
 
-	filtroRecibido repositories.StrChargeFilter
-	yearRecibido   int
-	monthRecibido  int
-	archivos       []cargos_str.UploadedFile
+	filtroRecibido    repositories.StrChargeFilter
+	yearRecibido      int
+	monthRecibido     int
+	archivos          []cargos_str.UploadedFile
+	metaRecibida      cargos_str.LoadMeta
+	periodosRecibidos []string
 }
 
 func (f *servicioFake) Preview(_ context.Context, files []cargos_str.UploadedFile, year, month int) (cargos_str.ParseResult, error) {
@@ -42,8 +45,14 @@ func (f *servicioFake) Preview(_ context.Context, files []cargos_str.UploadedFil
 	return f.resultado, f.err
 }
 
-func (f *servicioFake) Confirm(context.Context, []cargos_str.StrRow) (string, error) {
+func (f *servicioFake) Confirm(_ context.Context, _ []cargos_str.StrRow, meta cargos_str.LoadMeta) (string, error) {
+	f.metaRecibida = meta
 	return f.loadID, f.err
+}
+
+func (f *servicioFake) Loads(_ context.Context, periods []string) ([]repositories.StrLoad, error) {
+	f.periodosRecibidos = periods
+	return f.cargues, f.err
 }
 
 func (f *servicioFake) CurrentCharges(_ context.Context, filtro repositories.StrChargeFilter) ([]repositories.StrCharge, error) {
@@ -69,6 +78,7 @@ func motorDePrueba(servicio cargos_str.CargosStrService) *gin.Engine {
 	grupo.POST("/confirm", controller.Confirm)
 	grupo.GET("", controller.Charges)
 	grupo.GET("/periods", controller.Periods)
+	grupo.GET("/loads", controller.Loads)
 
 	return motor
 }
@@ -358,5 +368,87 @@ func TestPeriods(t *testing.T) {
 	}
 	if len(periodos) != 2 || periodos[0] != "2026-07" {
 		t.Errorf("períodos = %v", periodos)
+	}
+}
+
+// El id del usuario tiene que salir del header, NO del cuerpo: es el único dato
+// de identidad que quien arma el request no puede falsear. El nombre sí viene
+// del cuerpo, y por eso solo sirve para mostrar.
+func TestConfirm_LaIdentidadSaleDelHeader(t *testing.T) {
+	servicio := &servicioFake{loadID: "carga-1"}
+
+	cuerpo := `{"rows":[{"operator_code":"CHEC","period":"2026-05","invoice_amount":100,"amount_payable":100}],
+	            "created_by":"Erika Ramírez",
+	            "source_files":["BalanceSTRTipoFactu2026-MAY.xlsx","BalanceSTRTipoReFactu2026-MAR-1.xlsx"]}`
+
+	req := httptest.NewRequest(http.MethodPost, "/ms-bill/liquidations/cargos-str/confirm", strings.NewReader(cuerpo))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-user-id", "usuario-del-header")
+
+	w := httptest.NewRecorder()
+	motorDePrueba(servicio).ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("código = %d: %s", w.Code, w.Body.String())
+	}
+	if servicio.metaRecibida.CreatedByID != "usuario-del-header" {
+		t.Errorf("created_by_id = %q; debe salir del header", servicio.metaRecibida.CreatedByID)
+	}
+	if servicio.metaRecibida.CreatedBy != "Erika Ramírez" {
+		t.Errorf("created_by = %q", servicio.metaRecibida.CreatedBy)
+	}
+	if len(servicio.metaRecibida.SourceFiles) != 2 {
+		t.Errorf("archivos = %v", servicio.metaRecibida.SourceFiles)
+	}
+}
+
+// Sin metadatos el cargue se guarda igual. Perder el historial no justifica
+// rechazar una carga válida.
+func TestConfirm_SinMetadatosGuardaIgual(t *testing.T) {
+	servicio := &servicioFake{loadID: "carga-1"}
+
+	cuerpo := `{"rows":[{"operator_code":"CHEC","period":"2026-05","invoice_amount":100,"amount_payable":100}]}`
+	req := httptest.NewRequest(http.MethodPost, "/ms-bill/liquidations/cargos-str/confirm", strings.NewReader(cuerpo))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	motorDePrueba(servicio).ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("código = %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestLoads(t *testing.T) {
+	servicio := &servicioFake{cargues: []repositories.StrLoad{
+		{LoadID: "c-2", Period: "2026-07", CreatedBy: "Erika", SourceFiles: "a.xlsx", Operators: 23},
+		{LoadID: "c-1", Period: "2026-06", Operators: 23},
+	}}
+
+	req := httptest.NewRequest(http.MethodGet, "/ms-bill/liquidations/cargos-str/loads?periods=2026-07,%202026-06", nil)
+	w := httptest.NewRecorder()
+	motorDePrueba(servicio).ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("código = %d: %s", w.Code, w.Body.String())
+	}
+
+	// El filtro llega limpio, sin el espacio de la coma.
+	if len(servicio.periodosRecibidos) != 2 || servicio.periodosRecibidos[1] != "2026-06" {
+		t.Errorf("períodos recibidos = %q", servicio.periodosRecibidos)
+	}
+
+	var respuesta struct {
+		Loads []repositories.StrLoad `json:"loads"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &respuesta); err != nil {
+		t.Fatalf("respuesta ilegible: %v", err)
+	}
+	if len(respuesta.Loads) != 2 || respuesta.Loads[0].LoadID != "c-2" {
+		t.Errorf("cargues = %+v", respuesta.Loads)
+	}
+	// Una carga vieja, sin metadatos, viaja con los campos vacíos y no rompe.
+	if respuesta.Loads[1].CreatedBy != "" {
+		t.Errorf("esperaba sin usuario: %+v", respuesta.Loads[1])
 	}
 }

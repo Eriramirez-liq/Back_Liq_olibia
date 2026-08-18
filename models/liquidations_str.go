@@ -31,6 +31,16 @@ type LiquidationsStrInput struct {
 	Reinvoice2Amount *float64 `gorm:"column:reinvoice_2_amount"`
 	Reinvoice3Amount *float64 `gorm:"column:reinvoice_3_amount"`
 
+	// Metadatos del cargue. Se repiten en cada fila del mismo LoadID: es el
+	// precio de no tener una tabla de cargas aparte, y agrupando por LoadID sale
+	// el historial. Con 23 filas por cargue, la repetición no molesta.
+	//
+	// Nulos en las filas anteriores a que existieran estas columnas. No se
+	// rellenan con nada inventado: el historial las muestra sin usuario.
+	CreatedBy   string `gorm:"column:created_by"`    // nombre para mostrar
+	CreatedByID string `gorm:"column:created_by_id"` // id del header x-user-id
+	SourceFiles string `gorm:"column:source_files"`  // nombres separados por coma
+
 	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime"`
 }
 

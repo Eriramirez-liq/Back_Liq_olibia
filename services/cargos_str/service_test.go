@@ -59,6 +59,9 @@ func (f *strRepoFake) TotalsByPeriod(context.Context, []string) (map[string]floa
 	return nil, nil
 }
 func (f *strRepoFake) PeriodsWithCharges(context.Context) ([]string, error) { return nil, nil }
+func (f *strRepoFake) Loads(context.Context, []string) ([]repositories.StrLoad, error) {
+	return nil, nil
+}
 
 type agentsRepoFake struct {
 	nombres map[string]string
@@ -67,6 +70,14 @@ type agentsRepoFake struct {
 
 func (f agentsRepoFake) NamesByOperator(context.Context, map[string]string) (map[string]string, error) {
 	return f.nombres, f.err
+}
+
+func metaDePrueba() cargos_str.LoadMeta {
+	return cargos_str.LoadMeta{
+		CreatedBy:   "Erika Ramírez",
+		CreatedByID: "u-123",
+		SourceFiles: []string{"BalanceSTRTipoFactu2026-MAY.xlsx"},
+	}
 }
 
 func filasDePrueba() []cargos_str.StrRow {
@@ -87,7 +98,7 @@ func TestConfirm(t *testing.T) {
 		strRepo := &strRepoFake{}
 		service := cargos_str.NewCargosStrService(strRepo, agentsRepoFake{nombres: nombres})
 
-		loadID, err := service.Confirm(context.Background(), filasDePrueba())
+		loadID, err := service.Confirm(context.Background(), filasDePrueba(), metaDePrueba())
 		if err != nil {
 			t.Fatalf("error inesperado: %v", err)
 		}
@@ -116,7 +127,7 @@ func TestConfirm(t *testing.T) {
 		strRepo := &strRepoFake{errAlInsertarCargos: errors.New("caída")}
 		service := cargos_str.NewCargosStrService(strRepo, agentsRepoFake{nombres: nombres})
 
-		_, err := service.Confirm(context.Background(), filasDePrueba())
+		_, err := service.Confirm(context.Background(), filasDePrueba(), metaDePrueba())
 		if err == nil {
 			t.Fatal("se esperaba error")
 		}
@@ -135,7 +146,7 @@ func TestConfirm(t *testing.T) {
 		strRepo := &strRepoFake{}
 		service := cargos_str.NewCargosStrService(strRepo, agentsRepoFake{nombres: map[string]string{}})
 
-		_, err := service.Confirm(context.Background(), filasDePrueba())
+		_, err := service.Confirm(context.Background(), filasDePrueba(), metaDePrueba())
 		if err == nil {
 			t.Fatal("se esperaba error")
 		}
@@ -151,7 +162,7 @@ func TestConfirm(t *testing.T) {
 		strRepo := &strRepoFake{}
 		service := cargos_str.NewCargosStrService(strRepo, agentsRepoFake{nombres: nombres})
 
-		if _, err := service.Confirm(context.Background(), nil); err == nil {
+		if _, err := service.Confirm(context.Background(), nil, metaDePrueba()); err == nil {
 			t.Fatal("se esperaba error con un lote vacío")
 		}
 	})

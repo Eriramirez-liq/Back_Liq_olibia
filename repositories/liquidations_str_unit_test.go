@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"bia-bills/models"
 	"bia-bills/providers/postgres"
@@ -428,5 +429,85 @@ func TestUnit_PeriodsWithCharges_MasRecientePrimero(t *testing.T) {
 	}
 	if err := mockCP.ExpectationsWereMet(); err != nil {
 		t.Errorf("calculator-prices: %v", err)
+	}
+}
+
+// ── Historial de cargues ─────────────────────────────────────────────────────
+
+// El historial NO sale de calculator-prices sino de file-compiler: ahí está el
+// insumo con sus metadatos, y ahí es donde un cargue existe.
+func TestUnit_Loads_LeeDeFileCompiler(t *testing.T) {
+	repo, mockFC, mockCP, sqlEjecutado := mocksSTRConCaptura(t)
+
+	mockFC.ExpectQuery(`.*`).
+		WillReturnRows(sqlmock.NewRows([]string{"load_id", "period", "created_at", "created_by", "created_by_id", "source_files", "operators"}).
+			AddRow("carga-2", "2026-07", time.Now(), "Erika", "uid-1", "a.xlsx, b.xlsx", 23).
+			AddRow("carga-1", "2026-06", time.Now().Add(-time.Hour), "", "", "", 23))
+
+	cargues, err := repo.Loads(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("Loads: %v", err)
+	}
+
+	if len(cargues) != 2 {
+		t.Fatalf("devolvió %d cargues: %+v", len(cargues), cargues)
+	}
+	if cargues[0].CreatedBy != "Erika" || cargues[0].Operators != 23 {
+		t.Errorf("primer cargue mal mapeado: %+v", cargues[0])
+	}
+	// Un cargue viejo, anterior a los metadatos, viaja con los campos vacíos.
+	if cargues[1].CreatedBy != "" || cargues[1].Operators != 23 {
+		t.Errorf("cargue sin metadatos mal mapeado: %+v", cargues[1])
+	}
+
+	query := sqlEjecutado()[0]
+	if !strings.Contains(query, "liquidations_str_inputs") {
+		t.Errorf("no lee de la tabla de insumos:\n%s", query)
+	}
+	if !strings.Contains(query, "GROUP BY load_id, period") {
+		t.Errorf("no agrupa por cargue:\n%s", query)
+	}
+	// Más reciente primero: es lo que espera el historial.
+	if !strings.Contains(query, "ORDER BY MIN(created_at) DESC") {
+		t.Errorf("no ordena por fecha descendente:\n%s", query)
+	}
+
+	if err := mockCP.ExpectationsWereMet(); err != nil {
+		t.Errorf("calculator-prices recibió tráfico que no le corresponde: %v", err)
+	}
+}
+
+func TestUnit_Loads_SinPeriodosNoFiltra(t *testing.T) {
+	repo, mockFC, _, sqlEjecutado := mocksSTRConCaptura(t)
+
+	mockFC.ExpectQuery(`.*`).WillReturnRows(sqlmock.NewRows([]string{"load_id"}))
+
+	if _, err := repo.Loads(context.Background(), nil); err != nil {
+		t.Fatalf("Loads: %v", err)
+	}
+
+	if query := sqlEjecutado()[0]; strings.Contains(query, "WHERE") {
+		t.Errorf("filtró sin que le pidieran períodos:\n%s", query)
+	}
+}
+
+func TestUnit_Loads_ConPeriodosUsaIn(t *testing.T) {
+	repo, mockFC, _, sqlEjecutado := mocksSTRConCaptura(t)
+
+	mockFC.ExpectQuery(`.*`).WillReturnRows(sqlmock.NewRows([]string{"load_id"}))
+
+	if _, err := repo.Loads(context.Background(), []string{"2026-07", "2026-06"}); err != nil {
+		t.Fatalf("Loads: %v", err)
+	}
+
+	query := sqlEjecutado()[0]
+	if !strings.Contains(query, "WHERE period IN (") {
+		t.Errorf("no filtró por período:\n%s", query)
+	}
+	if strings.Contains(query, "ANY(") {
+		t.Errorf("volvió el ANY(?) que GORM no expande:\n%s", query)
+	}
+	if n := strings.Count(query, "$"); n != 2 {
+		t.Errorf("hay %d placeholders, se esperaban 2:\n%s", n, query)
 	}
 }

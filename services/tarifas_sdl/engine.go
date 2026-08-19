@@ -53,31 +53,25 @@ var orTipo = map[string]TipoInsumo{
 	"RUITOQUE": InsumoADD,
 }
 
-// orAreaADD es el área de distribución de cada operador tipo ADD.
-var orAreaADD = map[string]AreaDistribucion{
-	"CENS": AreaCentro, "CHEC": AreaCentro, "EDEQ": AreaCentro,
-	"ESSA": AreaCentro, "RUITOQUE": AreaCentro,
-
-	"CEDENAR": AreaOccidente, "CELSIA_VALLE": AreaOccidente,
-	"CEO": AreaOccidente, "CETSA": AreaOccidente,
-
-	"CELSIA_TOLIMA": AreaOriente, "EBSA": AreaOriente, "ELECTROHUILA": AreaOriente,
-
-	"EMSA": AreaSur, "ENERCA": AreaSur,
-}
+// El área de distribución de cada operador NO se declara acá: sale de los
+// archivos ADD.
+//
+// Hubo un mapa fijo en este lugar y estaba mal. Cada hoja "Cargos ADD" lista los
+// operadores de su área, y esa lista no coincidía con el mapa: EEP Pereira y EPM
+// figuran en Centro, EEP Cartago y EMCALI en Occidente, ENEL en Oriente, y el mapa
+// los dejaba a los cinco sin área. Un mapa fijo además envejece en silencio cuando
+// XM mueve un operador de área, mientras el archivo siempre dice la verdad.
+//
+// Ojo con la confusión que esto invita: el TIPO (de dónde sale el NT) y el ÁREA
+// son cosas distintas. Un operador tipo USO calcula su tarifa con los DT de su
+// propio archivo Y ADEMÁS pertenece a un área, con sus cargos ADD. Ver
+// ComponentesDe en parser.go.
 
 // TipoDeOperador devuelve de dónde sale el NT de un operador, y si está en el
 // catálogo.
 func TipoDeOperador(codigo string) (TipoInsumo, bool) {
 	tipo, ok := orTipo[codigo]
 	return tipo, ok
-}
-
-// AreaDeOperador devuelve el área ADD de un operador tipo ADD. Para los tipo USO
-// devuelve false: no tienen área porque no usan los archivos ADD.
-func AreaDeOperador(codigo string) (AreaDistribucion, bool) {
-	area, ok := orAreaADD[codigo]
-	return area, ok
 }
 
 // OperatorCodes devuelve los códigos del catálogo, ordenados.

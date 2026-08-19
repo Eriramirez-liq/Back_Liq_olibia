@@ -149,21 +149,28 @@ func TestCatalogo_TieneLos21Operadores(t *testing.T) {
 	}
 }
 
-func TestCatalogo_TipoYAreaDeCadaOperador(t *testing.T) {
+// El catálogo declara UNA sola cosa: de qué archivo sale el NT de cada operador.
+//
+// El área NO está acá: sale de los archivos ADD, que listan sus operadores. Y las
+// dos cosas son independientes — EPM es tipo USO y a la vez pertenece a Centro. La
+// prueba de que el área se lee bien está en el parser, contra los archivos reales.
+func TestCatalogo_TipoDeCadaOperador(t *testing.T) {
 	casos := []struct {
 		codigo string
 		tipo   tarifas_sdl.TipoInsumo
-		area   tarifas_sdl.AreaDistribucion // vacío = no tiene área
 	}{
-		{"CENS", tarifas_sdl.InsumoADD, tarifas_sdl.AreaCentro},
-		{"CHEC", tarifas_sdl.InsumoADD, tarifas_sdl.AreaCentro},
-		{"CEDENAR", tarifas_sdl.InsumoADD, tarifas_sdl.AreaOccidente},
-		{"EBSA", tarifas_sdl.InsumoADD, tarifas_sdl.AreaOriente},
-		{"EMSA", tarifas_sdl.InsumoADD, tarifas_sdl.AreaSur},
-		// Los tipo USO no tienen área: su NT sale de su propio archivo.
-		{"EPM", tarifas_sdl.InsumoUSO, ""},
-		{"AIRE", tarifas_sdl.InsumoUSO, ""},
-		{"AFINIA", tarifas_sdl.InsumoUSO, ""},
+		{"CENS", tarifas_sdl.InsumoADD},
+		{"CHEC", tarifas_sdl.InsumoADD},
+		{"CEDENAR", tarifas_sdl.InsumoADD},
+		{"EBSA", tarifas_sdl.InsumoADD},
+		{"EMSA", tarifas_sdl.InsumoADD},
+		{"EPM", tarifas_sdl.InsumoUSO},
+		{"AIRE", tarifas_sdl.InsumoUSO},
+		{"AFINIA", tarifas_sdl.InsumoUSO},
+		{"EEP_PEREIRA", tarifas_sdl.InsumoUSO},
+		{"EEP_CARTAGO", tarifas_sdl.InsumoUSO},
+		{"EMCALI", tarifas_sdl.InsumoUSO},
+		{"ENEL", tarifas_sdl.InsumoUSO},
 	}
 
 	for _, caso := range casos {
@@ -175,34 +182,7 @@ func TestCatalogo_TipoYAreaDeCadaOperador(t *testing.T) {
 			if tipo != caso.tipo {
 				t.Errorf("tipo = %q, se esperaba %q", tipo, caso.tipo)
 			}
-
-			area, tieneArea := tarifas_sdl.AreaDeOperador(caso.codigo)
-			if caso.area == "" {
-				if tieneArea {
-					t.Errorf("un operador tipo USO no debería tener área, tiene %q", area)
-				}
-				return
-			}
-			if !tieneArea {
-				t.Fatalf("%s debería tener área", caso.codigo)
-			}
-			if area != caso.area {
-				t.Errorf("área = %q, se esperaba %q", area, caso.area)
-			}
 		})
-	}
-}
-
-// Todo operador tipo ADD necesita un área, o su NT no se puede resolver.
-func TestCatalogo_TodoOperadorADDTieneArea(t *testing.T) {
-	for _, codigo := range tarifas_sdl.OperatorCodes() {
-		tipo, _ := tarifas_sdl.TipoDeOperador(codigo)
-		if tipo != tarifas_sdl.InsumoADD {
-			continue
-		}
-		if _, ok := tarifas_sdl.AreaDeOperador(codigo); !ok {
-			t.Errorf("%s es tipo ADD y no tiene área asignada", codigo)
-		}
 	}
 }
 

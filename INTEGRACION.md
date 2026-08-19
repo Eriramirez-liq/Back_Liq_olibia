@@ -155,6 +155,50 @@ solo acá y sin desplegar.
 
 Más reciente primero. Cada entrada: qué cambió, por qué, y qué implica para el otro repo.
 
+### 2026-08-19 — Tarifas SDL: el área sale de los archivos, y ajustes de la tabla
+
+**Backend.** El puerto de Tarifas SDL traía del motor TypeScript un mapa fijo de
+operador → área de distribución, y estaba mal: las hojas "Cargos ADD" listan los
+operadores de cada área y no coincidían con el mapa. EEP Pereira y EPM son de
+Centro, EEP Cartago y EMCALI de Occidente, ENEL de Oriente. Pasó de 14 operadores
+con área a **19 de 21**.
+
+El mapa se eliminó. La pertenencia ahora se lee de los archivos, resuelta **por
+nombre de mercado** — es lo único que distingue a los que comparten razón social.
+El área y los cargos ADD se guardan para todo operador que figure en un ADD, sin
+mirar su tipo: un operador tipo USO calcula su tarifa con su propio archivo Y
+ADEMÁS pertenece a un área. Detalle completo en
+[docs/backend/migracion-a-go.md](./docs/backend/migracion-a-go.md).
+
+Verificado por HTTP contra las bases con los 33 archivos reales: 21 filas, 0
+errores, y **210 tarifas comparadas contra el resultado anterior con 0
+diferencias** — el cambio agrega datos y no toca ningún cálculo.
+
+AFINIA y AIRE quedan sin área porque entre los 12 archivos no hay ninguno de un
+área Caribe. El preview lo avisa; no es un error.
+
+**Qué implica para el front.** Nada del contrato cambia: mismos endpoints, mismos
+campos. `distribution_area` y `dt1_add/dt2_add/dt3_add` pasan de venir en `null`
+para 7 operadores a venir con valor para 19. El fixture del test de contrato
+(`preview.dev.json`) se regeneró contra el backend real.
+
+**Front, en la misma tanda:**
+
+- Tarifas SDL: encabezado en tres bloques —energía arriba, nivel y propiedad en una
+  celda de dos líneas—, rótulos en inglés igual que las columnas de la base,
+  importes con signo peso y dos decimales, y todo centrado. Tipografía unificada:
+  el componente de tabla fija `text-label-xs` en los encabezados pero no fija nada
+  en las celdas, así que el cuerpo heredaba 14px y se veía más grande que su propio
+  encabezado.
+- Cargos STR: `Billing month` rotula una sola vez, sobre la columna del operador, y
+  desde ahí se entiende que los meses de las columnas son de **facturación** y no de
+  consumo. Rótulos en inglés y matriz centrada.
+- Modal de Crear OC: se cortaba por arriba y no se podía llegar al título ni a los
+  botones. El overlay del componente de UI es `flex flex-col justify-center` con
+  `overflow-y-auto`, y cuando el modal supera el alto de la pantalla el centrado
+  recorta la parte de arriba sin que el scroll la alcance. Se acotó a `max-h-[85vh]`
+  con scroll solo en el cuerpo. **Mismo riesgo abierto en `AccionableModal`.**
+
 ### 2026-08-17 — STR corre en dev sobre Go, y Supabase sale de su circuito
 
 El módulo está **desplegado en desarrollo** (bia-bills, rama
@@ -439,6 +483,23 @@ token real de Firebase** (requiere login en browser): la comprobación pendiente
 ---
 
 ## 6. Pendientes y decisiones abiertas
+
+- **Tarifas SDL — probado en local, falta el trasvase a bia-bills.** El módulo corre contra las
+  bases de BIA desde el arnés local (`cmd/liquidations-dev`, puerto 4110) y el front lo consume en
+  localhost. Falta pasar los archivos a bia-bills y desplegar en cactus. **El trasvase incluye el
+  arreglo del área de distribución de esta tanda y el de notación científica de `toNum` en STR.**
+- **AFINIA y AIRE sin área de distribución.** No figuran en ninguna hoja "Cargos ADD": entre los 12
+  archivos del lote no hay ninguno de un área Caribe. Verificado archivo por archivo. El preview lo
+  avisa. Si XM publica el ADD de Caribe, se suman esos 3 archivos y se llena solo; si en cambio
+  pertenecen a una de las cuatro áreas existentes, hay que confirmarlo con el negocio.
+- **El slot de develop en cactus es uno solo y gana el último deploy.** Un deploy de otra rama pisa
+  el nuestro sin avisar. Ya pasó una vez y costó una sesión de diagnóstico. Coordinar antes de
+  desplegar, o conseguir otro ambiente.
+- **`AccionableModal` tiene el mismo defecto que tenía el modal de Crear OC**: ancho fijo y sin alto
+  máximo. Si le entra una lista larga se va a cortar por arriba y no se va a poder cerrar. No se
+  tocó porque no estaba en el alcance.
+- **El badge del historial de cargas imprime la clave cruda** (`INSUMOS_TARIFAS_SDL`) al lado de
+  fuentes que sí muestran etiqueta. El diccionario ya tiene el rótulo; es una línea.
 
 - **Cargos STR en Go — falta probarlo desde la interfaz.** El backend corre en dev y el front ya lo
   consume, pero nadie hizo todavía una carga real por pantalla. Falta desplegar el front (rama

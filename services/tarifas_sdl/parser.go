@@ -107,6 +107,16 @@ type datosAdd struct {
 	archivo string
 }
 
+// addDelArchivo es lo que se saca de un archivo ADD: el cargo del área-nivel y
+// los mercados que la hoja lista, que son los que definen qué operadores
+// pertenecen al área.
+type addDelArchivo struct {
+	area     AreaDistribucion
+	nivel    int
+	valor    float64
+	mercados []string
+}
+
 // datosUso son los componentes del archivo de uso de la red de un operador.
 type datosUso struct {
 	dt1, dt2, dt3 float64
@@ -127,15 +137,19 @@ func ParseInputs(files []UploadedFile) ParseResult {
 
 	addPorArea := map[AreaDistribucion]map[int]datosAdd{}
 	usoPorOperador := map[string]datosUso{}
+	// Mercado (normalizado) → área. Se arma con lo que listan las hojas "Cargos
+	// ADD", que es la única fuente de la pertenencia de un operador a un área.
+	areaPorMercado := map[string]AreaDistribucion{}
 
 	for _, f := range files {
 		switch clasificar(f.Name) {
 		case "ADD":
-			area, nivel, valor, err := parsearAdd(f)
+			add, err := parsearAdd(f)
 			if err != nil {
 				res.CriticalErrors = append(res.CriticalErrors, err.Error())
 				continue
 			}
+			area, nivel := add.area, add.nivel
 			if addPorArea[area] == nil {
 				addPorArea[area] = map[int]datosAdd{}
 			}
@@ -148,7 +162,21 @@ func ParseInputs(files []UploadedFile) ParseResult {
 					area, nivel, previo.archivo, f.Name))
 				continue
 			}
-			addPorArea[area][nivel] = datosAdd{valor: valor, archivo: f.Name}
+			addPorArea[area][nivel] = datosAdd{valor: add.valor, archivo: f.Name}
+
+			// Un mercado en dos áreas distintas no puede ser: significa que hay
+			// archivos de períodos distintos, o que XM movió un operador y llegó
+			// el lote a medio actualizar.
+			for _, mercado := range add.mercados {
+				clave := normalizar(mercado)
+				if previa, existe := areaPorMercado[clave]; existe && previa != area {
+					res.CriticalErrors = append(res.CriticalErrors, fmt.Sprintf(
+						"El mercado %q aparece en dos áreas: %s y %s. Revisá que los archivos ADD sean todos del mismo período.",
+						mercado, previa, area))
+					continue
+				}
+				areaPorMercado[clave] = area
+			}
 
 		case "USO":
 			operador, datos, err := parsearUso(f)
@@ -179,10 +207,14 @@ func ParseInputs(files []UploadedFile) ParseResult {
 	// ── Cobertura y coherencia ──────────────────────────────────────────────
 	res.CriticalErrors = append(res.CriticalErrors, validarAdd(addPorArea)...)
 	res.CriticalErrors = append(res.CriticalErrors, validarCoberturaUso(usoPorOperador)...)
+	res.CriticalErrors = append(res.CriticalErrors,
+		validarAreaDeTipoAdd(usoPorOperador, areaPorMercado)...)
 
 	if len(res.CriticalErrors) > 0 {
 		return res
 	}
+
+	res.Warnings = append(res.Warnings, avisarSinArea(usoPorOperador, areaPorMercado)...)
 
 	// ── Una fila por operador ───────────────────────────────────────────────
 	for _, codigo := range OperatorCodes() {
@@ -197,10 +229,18 @@ func ParseInputs(files []UploadedFile) ParseResult {
 			SourceFiles: []string{uso.archivo},
 		}
 
-		// Los tipo ADD llevan además el DT del ADD de su área, que es el que
-		// entra en el cálculo.
-		if tipo, _ := TipoDeOperador(codigo); tipo == InsumoADD {
-			area, _ := AreaDeOperador(codigo)
+		// El área y los cargos del ADD se guardan para TODO operador que figure en
+		// una hoja "Cargos ADD", sin mirar su tipo. Son un dato del operador, no un
+		// insumo exclusivo del cálculo: los tipo USO también pertenecen a un área y
+		// tienen cargos ADD, aunque su tarifa se calcule con los DT de su propio
+		// archivo de uso de la red. Quién entra al cálculo lo decide ComponentesDe.
+		//
+		// La pertenencia se resuelve por nombre de mercado, que es lo único que
+		// distingue a los operadores que comparten razón social: EEP figura como
+		// "EEP Mercado de Comercialización PEREIRA" en Centro y como "…CARTAGO" en
+		// Occidente, y Celsia como VALLE DEL CAUCA en Occidente y TOLIMA en Oriente.
+		// El nombre del operador no alcanzaría: los dos dicen "EEP".
+		if area, enUnArea := areaPorMercado[normalizar(uso.mercado)]; enUnArea {
 			fila.DistributionArea = string(area)
 
 			porNivel := addPorArea[area]
@@ -282,6 +322,70 @@ func validarAdd(addPorArea map[AreaDistribucion]map[int]datosAdd) []string {
 	return errores
 }
 
+// validarAreaDeTipoAdd verifica que los operadores cuyo NT sale del ADD figuren en
+// alguna hoja "Cargos ADD". Antes esto lo garantizaba un mapa fijo en el código;
+// ahora la pertenencia sale de los archivos, así que hay que comprobarla.
+//
+// Es error crítico y no aviso: sin área no tienen de dónde tomar el NT y la fila
+// saldría con las diez tarifas en cero, que es peor que no cargar.
+func validarAreaDeTipoAdd(
+	usoPorOperador map[string]datosUso,
+	areaPorMercado map[string]AreaDistribucion,
+) []string {
+	faltan := []string{}
+	for _, codigo := range OperatorCodes() {
+		if tipo, _ := TipoDeOperador(codigo); tipo != InsumoADD {
+			continue
+		}
+		uso, tieneUso := usoPorOperador[codigo]
+		if !tieneUso {
+			continue // ya lo reporta validarCoberturaUso
+		}
+		if _, enArea := areaPorMercado[normalizar(uso.mercado)]; !enArea {
+			faltan = append(faltan, fmt.Sprintf("%s (mercado %q)", codigo, uso.mercado))
+		}
+	}
+	if len(faltan) == 0 {
+		return nil
+	}
+
+	return []string{fmt.Sprintf(
+		"Estos operadores toman su cargo de red del ADD pero no figuran en ninguna hoja \"Cargos ADD\" "+
+			"del lote: %s. Verificá que estén los 12 archivos del período y que el mercado del archivo "+
+			"de uso de la red coincida con el del ADD.", strings.Join(faltan, ", "))}
+}
+
+// avisarSinArea deja constancia de los operadores que no figuran en ningún archivo
+// ADD del lote.
+//
+// No es error: son tipo USO, calculan su tarifa con los DT de su propio archivo y
+// no necesitan el ADD para nada. Pero el área y los cargos ADD quedan vacíos en la
+// tabla de insumos, y eso se lee como un dato que falta. El aviso lo hace explícito
+// en el preview, antes de guardar.
+func avisarSinArea(
+	usoPorOperador map[string]datosUso,
+	areaPorMercado map[string]AreaDistribucion,
+) []string {
+	sinArea := []string{}
+	for _, codigo := range OperatorCodes() {
+		uso, tieneUso := usoPorOperador[codigo]
+		if !tieneUso {
+			continue
+		}
+		if _, enArea := areaPorMercado[normalizar(uso.mercado)]; !enArea {
+			sinArea = append(sinArea, fmt.Sprintf("%s (mercado %q)", codigo, uso.mercado))
+		}
+	}
+	if len(sinArea) == 0 {
+		return nil
+	}
+
+	return []string{fmt.Sprintf(
+		"Sin área de distribución, porque no figuran en ninguna hoja \"Cargos ADD\" del lote: %s. "+
+			"Su tarifa se calcula igual, con los cargos de su propio archivo de uso de la red.",
+		strings.Join(sinArea, ", "))}
+}
+
 func validarCoberturaUso(usoPorOperador map[string]datosUso) []string {
 	faltan := []string{}
 	for _, codigo := range OperatorCodes() {
@@ -342,33 +446,36 @@ func nivelDelNombre(nombre string) (int, bool) {
 // en "Cargos Dt" y "Cargos Transitorios" del mismo libro el valor VARÍA por
 // operador, así que si alguien apunta a la hoja equivocada, esta comprobación lo
 // detecta.
-func parsearAdd(f UploadedFile) (AreaDistribucion, int, float64, error) {
+func parsearAdd(f UploadedFile) (addDelArchivo, error) {
+	vacio := addDelArchivo{}
+
 	area, okArea := areaDelNombre(f.Name)
 	nivel, okNivel := nivelDelNombre(f.Name)
 	if !okArea || !okNivel {
-		return "", 0, 0, fmt.Errorf(
+		return vacio, fmt.Errorf(
 			"del nombre del archivo ADD %q no se pudo deducir el área y el nivel", f.Name)
 	}
 
 	libro, err := abrir(f)
 	if err != nil {
-		return "", 0, 0, err
+		return vacio, err
 	}
 	defer func() { _ = libro.Close() }()
 
 	hoja, err := hojaPorPrefijo(libro, hojaAddPrefijo, f.Name)
 	if err != nil {
-		return "", 0, 0, err
+		return vacio, err
 	}
 
 	filas, err := libro.GetRows(hoja, excelize.Options{RawCellValue: true})
 	if err != nil {
-		return "", 0, 0, fmt.Errorf("no se pudo leer la hoja %q de %q: %v", hoja, f.Name, err)
+		return vacio, fmt.Errorf("no se pudo leer la hoja %q de %q: %v", hoja, f.Name, err)
 	}
 
-	// Fila de encabezado y columna del cargo, las dos por nombre.
+	// Fila de encabezado y columnas, todas por nombre.
 	filaHdr := -1
 	colValor := -1
+	colOperador := -1
 	for i, fila := range filas {
 		if !contieneNormalizado(fila, encabezadoOperad) {
 			continue
@@ -376,35 +483,54 @@ func parsearAdd(f UploadedFile) (AreaDistribucion, int, float64, error) {
 		filaHdr = i
 		for c, celda := range fila {
 			n := normalizar(celda)
-			if strings.Contains(n, columnaAdd) || strings.Contains(n, normalizar(columnaAddOtra)) {
+			if colValor < 0 && (strings.Contains(n, columnaAdd) || strings.Contains(n, normalizar(columnaAddOtra))) {
 				colValor = c
-				break
+			}
+			if colOperador < 0 && strings.Contains(n, encabezadoOperad) {
+				colOperador = c
 			}
 		}
 		break
 	}
 	if filaHdr < 0 {
-		return "", 0, 0, fmt.Errorf(
+		return vacio, fmt.Errorf(
 			"en %q, hoja %q, no se encontró la fila de encabezado (ninguna celda dice %q)",
 			f.Name, hoja, encabezadoOperad)
 	}
 	if colValor < 0 {
-		return "", 0, 0, fmt.Errorf(
+		return vacio, fmt.Errorf(
 			"en %q, hoja %q, no se encontró la columna %q. Encabezados encontrados: %s",
 			f.Name, hoja, columnaAddOtra, strings.Join(noVacias(filas[filaHdr]), " | "))
 	}
 
-	// Todos los valores numéricos de esa columna, debajo del encabezado.
+	// Cada fila de datos trae el operador con su mercado y el cargo del área. El
+	// mercado es lo que después resuelve a qué operador pertenece la fila.
 	valores := []float64{}
+	mercados := []string{}
 	for i := filaHdr + 1; i < len(filas); i++ {
 		v, ok := numero(celda(filas, i, colValor))
-		if ok {
-			valores = append(valores, v)
+		if !ok {
+			continue
+		}
+		valores = append(valores, v)
+
+		if mercado := mercadoDeEtiqueta(celda(filas, i, colOperador)); mercado != "" {
+			mercados = append(mercados, mercado)
 		}
 	}
 	if len(valores) == 0 {
-		return "", 0, 0, fmt.Errorf(
+		return vacio, fmt.Errorf(
 			"en %q, hoja %q, la columna %q no tiene ningún valor numérico", f.Name, hoja, columnaAddOtra)
+	}
+
+	// Si la hoja lista operadores pero no se les pudo leer el mercado, el área
+	// quedaría sin operadores y nadie tendría cargos ADD. Falla explícito: es un
+	// cambio de formato en la etiqueta del operador.
+	if len(mercados) == 0 {
+		return vacio, fmt.Errorf(
+			"en %q, hoja %q, no se pudo leer el mercado de ningún operador. La etiqueta esperada es "+
+				"algo como \"CENS Mercado de Comercialización NORTE DE SANTANDER\" y se leyó %q",
+			f.Name, hoja, celda(filas, filaHdr+1, colOperador))
 	}
 
 	distintos := map[string]bool{}
@@ -412,13 +538,13 @@ func parsearAdd(f UploadedFile) (AreaDistribucion, int, float64, error) {
 		distintos[strconv.FormatFloat(v, 'f', 9, 64)] = true
 	}
 	if len(distintos) > 1 {
-		return "", 0, 0, fmt.Errorf(
+		return vacio, fmt.Errorf(
 			"en %q, hoja %q, la columna %q trae %d valores distintos y debería ser el mismo cargo para "+
 				"todos los operadores del área. Probablemente se está leyendo la hoja o la columna equivocada.",
 			f.Name, hoja, columnaAddOtra, len(distintos))
 	}
 
-	return area, nivel, valores[0], nil
+	return addDelArchivo{area: area, nivel: nivel, valor: valores[0], mercados: mercados}, nil
 }
 
 // Mercado de comercialización → operador de red.
@@ -632,27 +758,43 @@ func identidadDelUso(nombre string, filas [][]string) (operador, agente, mercado
 			"en %q no se pudo leer el código de agente: la celda del título dice %q", nombre, titulo)
 	}
 
-	// El mercado es lo que va después de "Mercado de Comercialización -".
-	//
-	// Se ancla en la frase y no en el último guion porque hay mercados con guiones
-	// adentro: "CALI - YUMBO - PUERTO TEJADA" quedaría reducido a "PUERTO TEJADA".
-	// Y tampoco se puede partir por el primer guion contando posiciones: hay
-	// nombres con guion, como "AIR-E".
-	//
-	// Se busca "COMERCIALIZACI" —sin la vocal acentuada— porque el índice se usa
-	// para cortar el texto ORIGINAL. Buscar la frase completa en el texto
-	// normalizado daba un índice corrido: la "ó" ocupa dos bytes y la "o" que la
-	// reemplaza ocupa uno, así que el corte caía un byte antes y el mercado salía
-	// como "n - CARIBE MAR".
+	return operador, agente, mercadoDeEtiqueta(titulo), nil
+}
+
+// mercadoDeEtiqueta saca el mercado de una etiqueta "… Mercado de Comercialización
+// [-] MERCADO".
+//
+// Los dos formatos de archivo traen el mercado en la misma frase pero con
+// puntuación distinta, así que el guion es opcional:
+//
+//	uso de la red: "EEPD - EEP Mercado de Comercialización - CARTAGO"
+//	ADD:           "EEP Mercado de Comercialización CARTAGO"
+//
+// Se ancla en la frase y no en el último guion porque hay mercados con guiones
+// adentro: "CALI - YUMBO - PUERTO TEJADA" quedaría reducido a "PUERTO TEJADA". Y
+// tampoco se puede partir por el primer guion contando posiciones: hay nombres con
+// guion, como "AIR-E".
+//
+// Se busca "COMERCIALIZACI" —sin la vocal acentuada— porque el índice se usa para
+// cortar el texto ORIGINAL. Buscar la frase completa en el texto normalizado daba
+// un índice corrido: la "ó" ocupa dos bytes y la "o" que la reemplaza ocupa uno,
+// así que el corte caía un byte antes y el mercado salía como "n - CARIBE MAR".
+func mercadoDeEtiqueta(etiqueta string) string {
 	const ancla = "COMERCIALIZACI"
-	if k := strings.Index(strings.ToUpper(titulo), ancla); k >= 0 {
-		resto := titulo[k+len(ancla):]
-		if g := strings.Index(resto, "-"); g >= 0 {
-			mercado = strings.TrimSpace(resto[g+1:])
-		}
+	k := strings.Index(strings.ToUpper(etiqueta), ancla)
+	if k < 0 {
+		return ""
 	}
 
-	return operador, agente, mercado, nil
+	// Lo que sigue al ancla es el final de la palabra ("ón" u "on"), que nunca
+	// tiene espacios: se salta hasta el primer espacio y de ahí sale el mercado.
+	resto := etiqueta[k+len(ancla):]
+	i := strings.IndexAny(resto, " \t")
+	if i < 0 {
+		return ""
+	}
+
+	return strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(resto[i:]), "-"))
 }
 
 func codigoDeMercado(nombre string) string {

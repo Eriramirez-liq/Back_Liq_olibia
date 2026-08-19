@@ -236,11 +236,21 @@ Para probar en localhost:
 
 ```bash
 cd Back_Liq_olibia
-export GO_ENVIRONMENT=production            # sin esto, GORM loguea cada consulta
 export liq_db_host=...  liq_db_port=5432    # los mismos DB_HOST / DB_USER2 del .env
 export liq_db_user=...  liq_db_password=...
 export LIQ_DEV_PORT=4110
 go run ./cmd/liquidations-dev
+```
+
+**Ojo con `GO_ENVIRONMENT`**: el nombre engaña. No elige el ambiente —las bases las
+determinan las variables `liq_db_*`— sino que prende o apaga el log de cada
+consulta SQL, y su default ya es `production`, o sea apagado. Se hereda de la
+convención de bia-bills.
+
+Para VER las consultas mientras se depura:
+
+```bash
+export GO_ENVIRONMENT=development
 ```
 
 Verificar que responde:
@@ -312,6 +322,47 @@ puntos —quitar el `DISTINCT ON`, volver al `ANY(?)`, cruzar las bases de
 escritura, cambiar un path, errar un nombre de tabla, sacar el filtro de
 `OPERADOR DE RED`— y los seis dieron rojo. Vale repetirlo al tocar estas
 consultas: un test que no falla cuando debería es peor que no tener test.
+
+### El área de distribución sale de los archivos, no del código
+
+Durante el puerto de Tarifas SDL, el motor TypeScript traía dos tablas fijas:
+`OR_TIPO` (de qué archivo sale el NT) y `OR_AREA_ADD` (a qué área pertenece cada
+operador). Las dos se portaron tal cual, y la segunda **estaba mal**.
+
+Cada hoja "Cargos ADD" lista los operadores de su área, y esa lista no coincidía
+con el mapa: EEP Pereira y EPM figuran en Centro, EEP Cartago y EMCALI en
+Occidente, ENEL en Oriente, y el mapa los dejaba a los cinco sin área. Pasó de 14
+operadores con área a 19.
+
+`OR_AREA_ADD` se eliminó. La pertenencia se lee de los archivos, **por nombre de
+mercado**: los dos archivos de EEP dicen "EEP" y solo el mercado los separa
+(`EEP Mercado de Comercialización PEREIRA` contra `…CARTAGO`). Lo mismo con Celsia
+entre Valle y Tolima. El mercado viene en los dos formatos con la misma frase pero
+distinta puntuación —el de uso de la red mete un guion, el ADD no—, y de ahí que
+`mercadoDeEtiqueta` lo trate como opcional.
+
+Dos cosas que conviene no confundir:
+
+- **El tipo y el área son independientes.** Un operador tipo USO calcula su tarifa
+  con los DT de su propio archivo Y ADEMÁS pertenece a un área, con sus cargos ADD.
+  El área es un dato del operador; qué entra al cálculo lo decide `ComponentesDe`.
+- **`OR_TIPO` sigue siendo una tabla fija en el código**, y está bien: es una regla
+  regulatoria sobre qué archivo publica el cargo de cada operador, no algo que los
+  archivos digan.
+
+AFINIA y AIRE quedan sin área: entre los 12 archivos no hay ninguno de un área
+Caribe. No es un error del parser —se verificó archivo por archivo— y el preview lo
+avisa explícitamente en vez de dejar el hueco callado. Si XM publica el ADD de
+Caribe, se suman esos 3 archivos al lote y se llenan solos.
+
+Al quitar el mapa fijo hubo que agregar dos controles que antes garantizaba el
+código: un operador tipo ADD que no figure en ningún archivo **corta la carga**
+(sin área no tiene de dónde tomar el NT y saldría con las diez tarifas en cero), y
+si cambia el formato de la etiqueta del operador el parser falla con el texto que
+leyó, en vez de dejar todas las áreas vacías en silencio.
+
+La garantía de que el cambio no movió nada: **210 tarifas comparadas contra el
+resultado anterior, 0 diferencias.**
 
 ### Tres trampas que ya costaron una sesión cada una
 

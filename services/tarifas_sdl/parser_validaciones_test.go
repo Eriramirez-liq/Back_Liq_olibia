@@ -26,12 +26,28 @@ import (
 
 // ── Constructores ───────────────────────────────────────────────────────────
 
-// archivoAdd arma un archivo ADD con un valor por operador.
+// archivoAdd arma un archivo ADD del área con el mismo cargo para todos sus
+// operadores, que es la forma del dato real.
+func archivoAdd(t *testing.T, area string, nivel int, valor float64) tarifas_sdl.UploadedFile {
+	t.Helper()
+
+	valores := make([]float64, len(mercadosPorArea[area]))
+	for i := range valores {
+		valores[i] = valor
+	}
+
+	return archivoAddNoUniforme(t, area, nivel, valores)
+}
+
+// archivoAddNoUniforme arma un archivo ADD con un cargo distinto por fila, para
+// probar la validación de uniformidad. Los archivos reales nunca son así.
 //
 // Réplica de la estructura real: hoja "Cargos ADD <área> <nivel>", una fila de
 // encabezado con "Operador de Red - Mercado" y "Cargo Único Transitorio", y las
-// filas de datos debajo.
-func archivoAdd(t *testing.T, area string, nivel int, valores []float64) tarifas_sdl.UploadedFile {
+// filas de datos debajo, cada una con su operador y su mercado.
+func archivoAddNoUniforme(
+	t *testing.T, area string, nivel int, valores []float64,
+) tarifas_sdl.UploadedFile {
 	t.Helper()
 
 	f := excelize.NewFile()
@@ -54,8 +70,16 @@ func archivoAdd(t *testing.T, area string, nivel int, valores []float64) tarifas
 	poner("B2", fmt.Sprintf("ADD %s Nivel %d", area, nivel))
 	poner("B4", "Operador de Red - Mercado")
 	poner("C4", "Cargo Único Transitorio ($/kWh)")
+	// La etiqueta lleva el mercado, que es de donde el parser saca a qué área
+	// pertenece cada operador. Sin mercado no habría pertenencia y ningún operador
+	// tendría cargos ADD.
+	mercados := mercadosPorArea[area]
 	for i, v := range valores {
-		poner(fmt.Sprintf("B%d", 5+i), fmt.Sprintf("OPERADOR %d Mercado de Comercialización", i+1))
+		mercado := fmt.Sprintf("MERCADO AJENO %d", i+1)
+		if i < len(mercados) {
+			mercado = mercados[i]
+		}
+		poner(fmt.Sprintf("B%d", 5+i), fmt.Sprintf("OPERADOR %d Mercado de Comercialización %s", i+1, mercado))
 		poner(fmt.Sprintf("C%d", 5+i), v)
 	}
 
@@ -173,6 +197,22 @@ var mercadosDePrueba = []struct{ cod, agente, mercado string }{
 
 var areasDePrueba = []string{"Centro", "Occidente", "Oriente", "Sur"}
 
+// mercadosPorArea reparte los mercados de prueba en las cuatro áreas, como lo hacen
+// las hojas "Cargos ADD" reales: cada una lista los mercados de su área y de ahí
+// sale la pertenencia de cada operador.
+//
+// CARIBE MAR y CARIBE SOL quedan afuera a propósito, igual que en los archivos de
+// XM: no hay archivo de un área Caribe, así que esos dos operadores no tienen área.
+var mercadosPorArea = map[string][]string{
+	"Centro": {
+		"NORTE DE SANTANDER", "CALDAS", "QUINDIO", "PEREIRA",
+		"ANTIOQUIA", "SANTANDER", "RUITOQUE",
+	},
+	"Occidente": {"NARIÑO", "VALLE DEL CAUCA", "CAUCA", "TULUA", "CARTAGO", "CALI - YUMBO"},
+	"Oriente":   {"TOLIMA", "BOYACA", "HUILA", "BOGOTA"},
+	"Sur":       {"META", "CASANARE"},
+}
+
 // loteValido arma los 33 archivos de un lote que tiene que parsear sin errores.
 func loteValido(t *testing.T) []tarifas_sdl.UploadedFile {
 	t.Helper()
@@ -182,7 +222,7 @@ func loteValido(t *testing.T) []tarifas_sdl.UploadedFile {
 		// Decrecientes por nivel, como en los archivos reales, y el mismo valor
 		// para todos los operadores del área.
 		for nivel, valor := range map[int]float64{1: 300, 2: 200, 3: 100} {
-			archivos = append(archivos, archivoAdd(t, area, nivel, []float64{valor, valor, valor}))
+			archivos = append(archivos, archivoAdd(t, area, nivel, valor))
 		}
 	}
 	for _, m := range mercadosDePrueba {
@@ -246,7 +286,7 @@ func TestValidaciones_PRComoPorcentajeCorta(t *testing.T) {
 // hoja — o los archivos son de períodos distintos.
 func TestValidaciones_MonotoniaDeLosCargosADD(t *testing.T) {
 	// Nivel 2 con un cargo MAYOR que el de nivel 1.
-	roto := archivoAdd(t, "Centro", 2, []float64{999, 999, 999})
+	roto := archivoAdd(t, "Centro", 2, 999)
 	res := tarifas_sdl.ParseInputs(reemplazar(loteValido(t), "CentroNivel2", roto))
 
 	if len(res.CriticalErrors) == 0 {
@@ -261,7 +301,7 @@ func TestValidaciones_MonotoniaDeLosCargosADD(t *testing.T) {
 // que distingue la hoja correcta: en "Cargos Dt" y "Cargos Transitorios" del mismo
 // libro el valor varía por operador.
 func TestValidaciones_UniformidadDelCargoADD(t *testing.T) {
-	roto := archivoAdd(t, "Centro", 1, []float64{300, 310, 320})
+	roto := archivoAddNoUniforme(t, "Centro", 1, []float64{300, 310, 320})
 	res := tarifas_sdl.ParseInputs(reemplazar(loteValido(t), "CentroNivel1", roto))
 
 	if len(res.CriticalErrors) == 0 {
@@ -337,7 +377,7 @@ func TestValidaciones_FaltarUnArchivoCorta(t *testing.T) {
 // silencio, y basta con que quede un archivo viejo en la carpeta.
 func TestValidaciones_ArchivoAddDuplicadoCorta(t *testing.T) {
 	archivos := loteValido(t)
-	duplicado := archivoAdd(t, "Centro", 1, []float64{300, 300, 300})
+	duplicado := archivoAdd(t, "Centro", 1, 300)
 	duplicado.Name = "LiquidacionDefinitivosCentroNivel1_202512.xlsx" // otro período
 	archivos = append(archivos, duplicado)
 

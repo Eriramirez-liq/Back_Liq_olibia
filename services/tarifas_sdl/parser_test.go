@@ -60,14 +60,46 @@ func cargarArchivosReales(t *testing.T) []tarifas_sdl.UploadedFile {
 	return archivos
 }
 
+// areaEsperada es la pertenencia de cada operador a un área según lo que listan
+// las hojas "Cargos ADD" de los 12 archivos reales. Vacío = no figura en ninguna.
+//
+// Está escrita a mano contra los archivos a propósito. El código ya no declara
+// esta tabla —la lee de los archivos— así que este test es el que fija lo que los
+// archivos dicen hoy: si XM mueve un operador de área, falla acá y se ve.
+var areaEsperada = map[string]string{
+	"CENS": "CENTRO", "CHEC": "CENTRO", "EDEQ": "CENTRO", "EEP_PEREIRA": "CENTRO",
+	"EPM": "CENTRO", "ESSA": "CENTRO", "RUITOQUE": "CENTRO",
+
+	"CEDENAR": "OCCIDENTE", "CELSIA_VALLE": "OCCIDENTE", "CEO": "OCCIDENTE",
+	"CETSA": "OCCIDENTE", "EEP_CARTAGO": "OCCIDENTE", "EMCALI": "OCCIDENTE",
+
+	"CELSIA_TOLIMA": "ORIENTE", "EBSA": "ORIENTE", "ELECTROHUILA": "ORIENTE",
+	"ENEL": "ORIENTE",
+
+	"EMSA": "SUR", "ENERCA": "SUR",
+
+	// Los dos del Caribe no figuran en ninguna hoja "Cargos ADD": entre los 12
+	// archivos no hay ninguno de un área Caribe.
+	"AFINIA": "", "AIRE": "",
+}
+
 func TestParseInputs_ArchivosReales(t *testing.T) {
 	res := tarifas_sdl.ParseInputs(cargarArchivosReales(t))
 
 	if len(res.CriticalErrors) > 0 {
 		t.Fatalf("el lote completo no debería dar errores críticos: %v", res.CriticalErrors)
 	}
-	if len(res.Warnings) > 0 {
-		t.Errorf("avisos inesperados con el lote completo: %v", res.Warnings)
+	// El único aviso esperado con el lote completo: AFINIA y AIRE no figuran en
+	// ninguna hoja "Cargos ADD" porque no hay archivo de área Caribe entre los 12.
+	if len(res.Warnings) != 1 {
+		t.Errorf("se esperaba exactamente 1 aviso (los dos del Caribe sin área), hubo %d: %v",
+			len(res.Warnings), res.Warnings)
+	} else {
+		for _, codigo := range []string{"AFINIA", "AIRE"} {
+			if !strings.Contains(res.Warnings[0], codigo) {
+				t.Errorf("el aviso de operadores sin área no menciona a %s: %q", codigo, res.Warnings[0])
+			}
+		}
 	}
 
 	// Una fila por operador del catálogo, ni una más ni una menos.
@@ -87,28 +119,31 @@ func TestParseInputs_ArchivosReales(t *testing.T) {
 			continue
 		}
 
-		tipo, _ := tarifas_sdl.TipoDeOperador(codigo)
-		if tipo == tarifas_sdl.InsumoADD {
-			// Un operador tipo ADD sin los DT del ADD no se puede calcular.
-			if fila.DT1Add == nil || fila.DT2Add == nil || fila.DT3Add == nil {
-				t.Errorf("%s es tipo ADD y le faltan los DT del ADD", codigo)
+		// El área es un dato del operador y NO depende de su tipo: sale de la hoja
+		// "Cargos ADD" que lo lista. EPM y EEP Pereira son tipo USO —calculan con
+		// los DT de su propio archivo— y a la vez pertenecen a Centro.
+		if fila.DistributionArea != areaEsperada[codigo] {
+			t.Errorf("%s: área = %q, se esperaba %q",
+				codigo, fila.DistributionArea, areaEsperada[codigo])
+		}
+
+		if areaEsperada[codigo] == "" {
+			// Sin área no hay cargos ADD que guardar: ponerlos en cero sería
+			// inventar un dato que el archivo no trae.
+			if fila.DT1Add != nil || fila.DT2Add != nil || fila.DT3Add != nil {
+				t.Errorf("%s no está en ningún ADD y trae cargos ADD", codigo)
 			}
-			if fila.DistributionArea == "" {
-				t.Errorf("%s es tipo ADD y no trae área", codigo)
+			if len(fila.SourceFiles) != 1 {
+				t.Errorf("%s trae %d archivos de origen, se esperaba 1", codigo, len(fila.SourceFiles))
+			}
+		} else {
+			if fila.DT1Add == nil || fila.DT2Add == nil || fila.DT3Add == nil {
+				t.Errorf("%s pertenece a %s y le faltan los cargos ADD", codigo, areaEsperada[codigo])
 			}
 			// Su archivo de uso de la red más los tres ADD de su área.
 			if len(fila.SourceFiles) != 4 {
 				t.Errorf("%s trae %d archivos de origen, se esperaban 4: %v",
 					codigo, len(fila.SourceFiles), fila.SourceFiles)
-			}
-		} else {
-			// Los tipo USO no tienen área ni DT del ADD: su NT sale de su propio
-			// archivo. Guardarlos sería inventar un dato.
-			if fila.DT1Add != nil || fila.DistributionArea != "" {
-				t.Errorf("%s es tipo USO y trae datos de ADD (área %q)", codigo, fila.DistributionArea)
-			}
-			if len(fila.SourceFiles) != 1 {
-				t.Errorf("%s trae %d archivos de origen, se esperaba 1", codigo, len(fila.SourceFiles))
 			}
 		}
 

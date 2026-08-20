@@ -364,6 +364,20 @@ leyó, en vez de dejar todas las áreas vacías en silencio.
 La garantía de que el cambio no movió nada: **210 tarifas comparadas contra el
 resultado anterior, 0 diferencias.**
 
+### Una trampa nueva: el escape invisible
+
+Al escribir una expresión regular en Go desde un script de Python, `` dentro de
+una cadena no cruda se convierte en un **carácter de retroceso** (0x08), no en la
+secuencia `` que espera el motor de regex. El archivo compila, la regex es válida
+y no coincide con nada. En el parser de SDL eso hizo que la validación de período
+no reconociera ningún nombre de archivo y avisara "no dice de qué período es" para
+los 21.
+
+Lo detectó el test dorado, no la lectura del código: el carácter es invisible en el
+editor y `grep` lo imprime como un retroceso, que **borra el carácter anterior en la
+terminal** y hace parecer que la regex está bien escrita. Se ve con `grep ... | cat -A`,
+que lo muestra como `^H`.
+
 ### Tres trampas que ya costaron una sesión cada una
 
 1. **GORM no expande slices en `= ANY(?)`.** Genera `ANY('CMMD','CSID',…)` y

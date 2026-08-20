@@ -2,6 +2,7 @@ package tarifas_sdl
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -127,13 +128,97 @@ type datosUso struct {
 	mercado       string // mercado de comercialización
 }
 
+// periodoDelNombreUso saca el período de un archivo de uso de la red, que lo trae
+// al final del nombre: "Cargo_Cobro_Uso_Red-DefinitivoCALM-202604.xlsx" → "2026-04".
+//
+// Devuelve "" si el nombre no lo trae en ese formato.
+func periodoDelNombreUso(nombre string) string {
+	m := periodoEnNombreUso.FindStringSubmatch(nombre)
+	if m == nil {
+		return ""
+	}
+
+	mes, err := strconv.Atoi(m[2])
+	if err != nil || mes < 1 || mes > 12 {
+		return ""
+	}
+
+	return fmt.Sprintf("%s-%02d", m[1], mes)
+}
+
+var periodoEnNombreUso = regexp.MustCompile(`-(20\d{2})(\d{2})\b`)
+
+// validarPeriodoDeUso corta la carga si algún archivo de uso de la red no es del
+// período elegido.
+//
+// Los archivos de uso de la red SÍ tienen que ser del mes que se está liquidando.
+// Los ADD no: van sistemáticamente dos meses atrás, y por eso no se validan —era
+// justo la parte de "unos archivos son de meses anteriores".
+//
+// CORTA y no avisa. Por el modelo append-only, un cargue con los archivos del mes
+// equivocado no se deshace desde la pantalla: quedan las tarifas de un mes
+// guardadas bajo otro, y el error recién aparece cuando alguien liquida. En los
+// cargues reales ya hay uno así: período 2026-07 con los archivos de junio.
+//
+// Si no llega el período —un front viejo contra un backend nuevo— no se valida,
+// pero se dice: callarlo dejaría pasar justo lo que esto viene a evitar.
+func validarPeriodoDeUso(period string, files []UploadedFile) (errores, avisos []string) {
+	if strings.TrimSpace(period) == "" {
+		return nil, []string{
+			"No llegó el período al preview, así que no se pudo verificar contra los archivos de " +
+				"uso de la red. Recargá la página; si sigue igual, el front está desactualizado.",
+		}
+	}
+
+	desajustes := []string{}
+	for _, f := range files {
+		if clasificar(f.Name) != "USO" {
+			continue
+		}
+		delArchivo := periodoDelNombreUso(f.Name)
+		if delArchivo == "" {
+			avisos = append(avisos, fmt.Sprintf(
+				"[%s] no dice en su nombre de qué período es, así que no se pudo verificar contra "+
+					"el seleccionado (%s).", f.Name, period))
+			continue
+		}
+		if delArchivo != period {
+			desajustes = append(desajustes, fmt.Sprintf("%q es de %s", f.Name, delArchivo))
+		}
+	}
+
+	if len(desajustes) > 0 {
+		// Se listan como mucho tres: son 21 archivos y si el mes está mal suelen
+		// estarlo todos. La lista completa no agrega nada y tapa el mensaje.
+		muestra := desajustes
+		sufijo := ""
+		if len(muestra) > 3 {
+			muestra, sufijo = muestra[:3], fmt.Sprintf(" y %d más", len(desajustes)-3)
+		}
+		errores = append(errores, fmt.Sprintf(
+			"El período seleccionado es %s y los archivos de uso de la red no son de ese mes: %s%s. "+
+				"Si los archivos son los que corresponden, corregí el período en Nueva carga; si no, "+
+				"cargá los de %s.",
+			period, strings.Join(muestra, ", "), sufijo, period))
+	}
+
+	return errores, avisos
+}
+
 // ParseInputs arma una fila por operador de red a partir del lote.
 //
-// El período NO sale de los archivos: lo elige la persona en Nueva carga y se
-// aplica a todo el lote. Los archivos ADD y los de uso de la red pueden ser de
-// meses distintos, y eso es correcto — así funciona el cálculo del negocio.
-func ParseInputs(files []UploadedFile) ParseResult {
+// El período lo elige la persona en Nueva carga. Sirve para dos cosas: rotula el
+// cargue, y se contrasta contra los archivos de uso de la red, que tienen que ser
+// de ese mes.
+func ParseInputs(files []UploadedFile, period string) ParseResult {
 	res := ParseResult{Rows: []SdlInputRow{}, Warnings: []string{}, CriticalErrors: []string{}}
+
+	errPeriodo, avisosPeriodo := validarPeriodoDeUso(period, files)
+	res.Warnings = append(res.Warnings, avisosPeriodo...)
+	if len(errPeriodo) > 0 {
+		res.CriticalErrors = append(res.CriticalErrors, errPeriodo...)
+		return res
+	}
 
 	addPorArea := map[AreaDistribucion]map[int]datosAdd{}
 	usoPorOperador := map[string]datosUso{}

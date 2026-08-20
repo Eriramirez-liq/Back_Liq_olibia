@@ -195,6 +195,10 @@ var mercadosDePrueba = []struct{ cod, agente, mercado string }{
 	{"RUIM", "RTQD", "RUITOQUE"},
 }
 
+// Los archivos de uso sintéticos se nombran -202601, y el parser exige que el
+// período coincida con ellos.
+const periodoDelLoteSintetico = "2026-01"
+
 var areasDePrueba = []string{"Centro", "Occidente", "Oriente", "Sur"}
 
 // mercadosPorArea reparte los mercados de prueba en las cuatro áreas, como lo hacen
@@ -254,7 +258,7 @@ func reemplazar(archivos []tarifas_sdl.UploadedFile, fragmento string, nuevo tar
 // Si esto falla, los constructores no replican el formato y el resto de los tests
 // no prueba nada.
 func TestValidaciones_ElLoteSinteticoValidoParsea(t *testing.T) {
-	res := tarifas_sdl.ParseInputs(loteValido(t))
+	res := tarifas_sdl.ParseInputs(loteValido(t), periodoDelLoteSintetico)
 
 	if len(res.CriticalErrors) > 0 {
 		t.Fatalf("el lote sintético válido debería parsear: %v", res.CriticalErrors)
@@ -271,7 +275,7 @@ func TestValidaciones_ElLoteSinteticoValidoParsea(t *testing.T) {
 // falla.
 func TestValidaciones_PRComoPorcentajeCorta(t *testing.T) {
 	roto := archivoUso(t, "CALM", "CHCD", "CALDAS", opcionesUso{pr1: 13.8011536})
-	res := tarifas_sdl.ParseInputs(reemplazar(loteValido(t), "CALM", roto))
+	res := tarifas_sdl.ParseInputs(reemplazar(loteValido(t), "CALM", roto), periodoDelLoteSintetico)
 
 	if len(res.CriticalErrors) == 0 {
 		t.Fatal("un PR de 13.8 tiene que cortar la carga")
@@ -287,7 +291,7 @@ func TestValidaciones_PRComoPorcentajeCorta(t *testing.T) {
 func TestValidaciones_MonotoniaDeLosCargosADD(t *testing.T) {
 	// Nivel 2 con un cargo MAYOR que el de nivel 1.
 	roto := archivoAdd(t, "Centro", 2, 999)
-	res := tarifas_sdl.ParseInputs(reemplazar(loteValido(t), "CentroNivel2", roto))
+	res := tarifas_sdl.ParseInputs(reemplazar(loteValido(t), "CentroNivel2", roto), periodoDelLoteSintetico)
 
 	if len(res.CriticalErrors) == 0 {
 		t.Fatal("los cargos que no decrecen por nivel tienen que cortar la carga")
@@ -302,7 +306,7 @@ func TestValidaciones_MonotoniaDeLosCargosADD(t *testing.T) {
 // libro el valor varía por operador.
 func TestValidaciones_UniformidadDelCargoADD(t *testing.T) {
 	roto := archivoAddNoUniforme(t, "Centro", 1, []float64{300, 310, 320})
-	res := tarifas_sdl.ParseInputs(reemplazar(loteValido(t), "CentroNivel1", roto))
+	res := tarifas_sdl.ParseInputs(reemplazar(loteValido(t), "CentroNivel1", roto), periodoDelLoteSintetico)
 
 	if len(res.CriticalErrors) == 0 {
 		t.Fatal("valores distintos por operador tienen que cortar la carga")
@@ -333,7 +337,7 @@ func TestValidaciones_LoQueFaltaCortaEnVezDeQuedarEnCero(t *testing.T) {
 	for nombre, caso := range casos {
 		t.Run(nombre, func(t *testing.T) {
 			roto := archivoUso(t, "CALM", "CHCD", "CALDAS", caso.op)
-			res := tarifas_sdl.ParseInputs(reemplazar(loteValido(t), "CALM", roto))
+			res := tarifas_sdl.ParseInputs(reemplazar(loteValido(t), "CALM", roto), periodoDelLoteSintetico)
 
 			if len(res.CriticalErrors) == 0 {
 				t.Fatal("tiene que cortar la carga en vez de dejar el valor en cero")
@@ -361,7 +365,7 @@ func TestValidaciones_FaltarUnArchivoCorta(t *testing.T) {
 
 	for nombre, caso := range casos {
 		t.Run(nombre, func(t *testing.T) {
-			res := tarifas_sdl.ParseInputs(sinArchivo(loteValido(t), caso.fragmento))
+			res := tarifas_sdl.ParseInputs(sinArchivo(loteValido(t), caso.fragmento), periodoDelLoteSintetico)
 
 			if len(res.CriticalErrors) == 0 {
 				t.Fatal("tiene que cortar la carga")
@@ -381,7 +385,7 @@ func TestValidaciones_ArchivoAddDuplicadoCorta(t *testing.T) {
 	duplicado.Name = "LiquidacionDefinitivosCentroNivel1_202512.xlsx" // otro período
 	archivos = append(archivos, duplicado)
 
-	res := tarifas_sdl.ParseInputs(archivos)
+	res := tarifas_sdl.ParseInputs(archivos, periodoDelLoteSintetico)
 
 	if len(res.CriticalErrors) == 0 {
 		t.Fatal("dos archivos del mismo área y nivel tienen que cortar la carga")
@@ -395,7 +399,7 @@ func TestValidaciones_ArchivoAddDuplicadoCorta(t *testing.T) {
 // operador inventado que después quedaba descartado sin explicación.
 func TestValidaciones_MercadoDesconocidoCorta(t *testing.T) {
 	desconocido := archivoUso(t, "XXXM", "ZZZZ", "MERCADO NUEVO", opcionesUso{})
-	res := tarifas_sdl.ParseInputs(append(loteValido(t), desconocido))
+	res := tarifas_sdl.ParseInputs(append(loteValido(t), desconocido), periodoDelLoteSintetico)
 
 	if len(res.CriticalErrors) == 0 {
 		t.Fatal("un mercado fuera de la tabla tiene que cortar la carga")
@@ -427,7 +431,7 @@ func TestValidaciones_HojaAddConOtroNombreCorta(t *testing.T) {
 		Content: buf.Bytes(),
 	}
 
-	res := tarifas_sdl.ParseInputs(reemplazar(loteValido(t), "CentroNivel1", roto))
+	res := tarifas_sdl.ParseInputs(reemplazar(loteValido(t), "CentroNivel1", roto), periodoDelLoteSintetico)
 
 	if len(res.CriticalErrors) == 0 {
 		t.Fatal("sin la hoja Cargos ADD tiene que cortar, no leer otra hoja")
@@ -459,7 +463,7 @@ func TestValidaciones_ColumnaAddRenombradaCorta(t *testing.T) {
 		Content: buf.Bytes(),
 	}
 
-	res := tarifas_sdl.ParseInputs(reemplazar(loteValido(t), "CentroNivel1", roto))
+	res := tarifas_sdl.ParseInputs(reemplazar(loteValido(t), "CentroNivel1", roto), periodoDelLoteSintetico)
 
 	if len(res.CriticalErrors) == 0 {
 		t.Fatal("con la columna renombrada hay que cortar, no tomar el primer número")
@@ -477,7 +481,7 @@ func TestValidaciones_ArchivoIlegible(t *testing.T) {
 		Content: []byte("esto no es un xlsx"),
 	}
 
-	res := tarifas_sdl.ParseInputs(reemplazar(loteValido(t), "CentroNivel1", roto))
+	res := tarifas_sdl.ParseInputs(reemplazar(loteValido(t), "CentroNivel1", roto), periodoDelLoteSintetico)
 
 	if len(res.CriticalErrors) == 0 {
 		t.Fatal("un archivo ilegible tiene que reportarse")
@@ -491,7 +495,7 @@ func TestValidaciones_ArchivoIlegible(t *testing.T) {
 // algo que quedó en la carpeta y no debe tumbar la carga.
 func TestValidaciones_ArchivoAjenoSoloAvisa(t *testing.T) {
 	ajeno := tarifas_sdl.UploadedFile{Name: "notas_del_mes.xlsx", Content: []byte("x")}
-	res := tarifas_sdl.ParseInputs(append(loteValido(t), ajeno))
+	res := tarifas_sdl.ParseInputs(append(loteValido(t), ajeno), periodoDelLoteSintetico)
 
 	if len(res.CriticalErrors) > 0 {
 		t.Fatalf("un archivo ajeno no debería cortar la carga: %v", res.CriticalErrors)
@@ -501,5 +505,84 @@ func TestValidaciones_ArchivoAjenoSoloAvisa(t *testing.T) {
 	}
 	if len(res.Rows) != 21 {
 		t.Errorf("devolvió %d filas", len(res.Rows))
+	}
+}
+
+// ── El período elegido contra los archivos de uso de la red ──────────────────
+//
+// Los archivos de uso de la red tienen que ser del mes que se liquida. Los ADD
+// no: van dos meses atrás por diseño. En los cargues reales ya hay uno mal,
+// período 2026-07 con los archivos de junio.
+
+func desajusteDeUso(mensajes []string) string {
+	for _, m := range mensajes {
+		if strings.Contains(m, "no son de ese mes") {
+			return m
+		}
+	}
+	return ""
+}
+
+func TestValidaciones_UsoDeOtroMesCortaLaCarga(t *testing.T) {
+	// Los archivos sintéticos son de 2026-01; se pide 2026-02.
+	res := tarifas_sdl.ParseInputs(loteValido(t), "2026-02")
+
+	mensaje := desajusteDeUso(res.CriticalErrors)
+	if mensaje == "" {
+		t.Fatalf("el desajuste de período tiene que cortar la carga. Errores: %v", res.CriticalErrors)
+	}
+	for _, esperado := range []string{"2026-02", "2026-01"} {
+		if !strings.Contains(mensaje, esperado) {
+			t.Errorf("el mensaje no menciona %q: %s", esperado, mensaje)
+		}
+	}
+	if len(res.Rows) != 0 {
+		t.Errorf("devolvió %d filas pese al desajuste de período", len(res.Rows))
+	}
+	// Son 21 archivos: si el mes está mal lo están todos, y listarlos completos
+	// taparía el mensaje. Se muestran tres y se dice cuántos faltan.
+	if !strings.Contains(mensaje, "y 18 más") {
+		t.Errorf("el mensaje debería resumir los 21 archivos: %s", mensaje)
+	}
+}
+
+func TestValidaciones_UsoDelMesElegidoNoCorta(t *testing.T) {
+	res := tarifas_sdl.ParseInputs(loteValido(t), periodoDelLoteSintetico)
+
+	if m := desajusteDeUso(res.CriticalErrors); m != "" {
+		t.Errorf("cortó por un desajuste que no existe: %s", m)
+	}
+}
+
+// Los ADD van dos meses atrás por diseño. Cortar por ellos rompería toda carga:
+// en el lote sintético son de 202601 igual que los de uso, así que se prueba con
+// un ADD explícitamente viejo.
+func TestValidaciones_AddDeOtroMesNoCorta(t *testing.T) {
+	viejo := archivoAdd(t, "Centro", 1, 300)
+	viejo.Name = "LiquidacionDefinitivosCentroNivel1_202511.xlsx"
+
+	res := tarifas_sdl.ParseInputs(reemplazar(loteValido(t), "CentroNivel1", viejo), periodoDelLoteSintetico)
+
+	if m := desajusteDeUso(res.CriticalErrors); m != "" {
+		t.Errorf("cortó por un archivo ADD, que por diseño es de un mes anterior: %s", m)
+	}
+}
+
+// Sin período no hay contra qué comparar. No se bloquea, pero se dice: callarlo
+// dejaría pasar justo lo que esta validación viene a evitar.
+func TestValidaciones_SinPeriodoAvisaQueNoSePudoVerificar(t *testing.T) {
+	res := tarifas_sdl.ParseInputs(loteValido(t), "")
+
+	var encontrado bool
+	for _, a := range res.Warnings {
+		if strings.Contains(a, "No llegó el período") {
+			encontrado = true
+		}
+	}
+	if !encontrado {
+		t.Errorf("no avisó que no se pudo verificar el período. Avisos: %v", res.Warnings)
+	}
+	if len(res.CriticalErrors) > 0 {
+		t.Errorf("no debería cortar cuando no llega el período: %v", res.CriticalErrors)
 	}
 }

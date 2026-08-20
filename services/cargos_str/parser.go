@@ -153,31 +153,44 @@ var (
 //
 // Si el nombre no trae mes o año reconocible devuelve el máximo, para que quede
 // al final; el desempate final es alfabético, así el orden es reproducible.
-func adjustmentOrder(filename string) int {
+// periodoDelNombre saca el año y el mes del nombre de un archivo BalanceSTR, que
+// los trae como "BalanceSTRTipoFactu2026-MAY.xlsx".
+//
+// ok=false cuando el nombre no dice mes o no dice año. No es un error por sí
+// solo: quien llama decide qué hacer con eso.
+func periodoDelNombre(filename string) (anio, mes int, ok bool) {
 	lower := strings.ToLower(filename)
 
-	month := 0
 	for _, m := range monthsInFilename {
 		if strings.Contains(lower, "-"+m.key) || strings.Contains(lower, "_"+m.key) {
-			month = m.month
+			mes = m.month
 			break
 		}
 	}
-	if month == 0 {
-		return 1 << 30
+	if mes == 0 {
+		return 0, 0, false
 	}
 
 	year := yearInFilename.FindStringSubmatch(lower)
 	if year == nil {
-		return 1 << 30
+		return 0, 0, false
 	}
 
 	n, err := strconv.Atoi(year[1])
 	if err != nil {
+		return 0, 0, false
+	}
+
+	return n, mes, true
+}
+
+func adjustmentOrder(filename string) int {
+	anio, mes, ok := periodoDelNombre(filename)
+	if !ok {
 		return 1 << 30
 	}
 
-	return n*100 + month
+	return anio*100 + mes
 }
 
 // toNum pasa el valor de una celda a número. Devuelve ok=false cuando la celda
@@ -422,6 +435,47 @@ func ParseStrInputs(files []UploadedFile, year, month int) ParseResult {
 	if len(invoices) == 0 {
 		resultado.Warnings = append(resultado.Warnings,
 			"El lote no trae archivo de factura (tipofactu): solo se registrarán ajustes.")
+	}
+
+	// ── El archivo de factura tiene que ser del período elegido ─────────────
+	//
+	// El período de la carga lo fija la persona en Nueva carga. El archivo de
+	// factura dice en su nombre de qué mes es —"BalanceSTRTipoFactu2026-MAY"— y si
+	// no coinciden, se eligió mal el mes o se arrastró el archivo de otro. Los
+	// cargues reales lo confirman: hay uno de 2026-05 hecho con el archivo de abril.
+	//
+	// CORTA la carga. Por el modelo append-only, un cargue con el archivo del mes
+	// equivocado no se deshace desde la pantalla: quedan cifras de un mes guardadas
+	// bajo otro, y el error solo aparece cuando alguien concilia. Es más barato
+	// frenarlo acá.
+	//
+	// Si el nombre no dice el mes, en cambio, solo se avisa: no hay contra qué
+	// comparar, y bloquear por eso dejaría a nadie cargar un archivo renombrado.
+	//
+	// Los archivos de refactura NO se validan: que sean de otros meses es
+	// exactamente lo que son, ajustes de períodos anteriores.
+	desajustes := []string{}
+	for _, f := range invoices {
+		anioArchivo, mesArchivo, ok := periodoDelNombre(f.Name)
+		if !ok {
+			resultado.Warnings = append(resultado.Warnings, fmt.Sprintf(
+				"[%s] no dice en su nombre de qué mes es, así que no se pudo verificar contra el "+
+					"período seleccionado (%s). Revisá que sea el archivo del mes correcto.",
+				f.Name, period))
+			continue
+		}
+		if anioArchivo != year || mesArchivo != month {
+			desajustes = append(desajustes, fmt.Sprintf(
+				"%q es de %04d-%02d", f.Name, anioArchivo, mesArchivo))
+		}
+	}
+	if len(desajustes) > 0 {
+		resultado.CriticalErrors = append(resultado.CriticalErrors, fmt.Sprintf(
+			"El período seleccionado es %s y el archivo de factura no es de ese mes: %s. "+
+				"Si el archivo es el que corresponde, corregí el período en Nueva carga; si no, "+
+				"cargá el archivo de %s.",
+			period, strings.Join(desajustes, ", "), period))
+		return resultado
 	}
 
 	// ── Extraer ─────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"bia-bills/repositories"
 	"bia-bills/services/tarifas_sdl"
@@ -49,7 +50,7 @@ type confirmarSdlRequest struct {
 
 // Preview parsea los archivos del lote y devuelve lo que se guardaría.
 //
-// POST /liquidations/tarifas-sdl/preview  (multipart: files[])
+// POST /liquidations/tarifas-sdl/preview  (multipart: files[], period opcional)
 func (controller LiquidationsSdlController) Preview(c *gin.Context) {
 	ctx := contextBia.RequestContext(c)
 	ctx, span := tracing.StartSpan(ctx, "controllers.LiquidationsSdlController.Preview")
@@ -88,7 +89,12 @@ func (controller LiquidationsSdlController) Preview(c *gin.Context) {
 		subidos = append(subidos, tarifas_sdl.UploadedFile{Name: cabecera.Filename, Content: contenido})
 	}
 
-	resultado, err := controller.service.Preview(ctx, subidos)
+	// El período es el que se eligió en Nueva carga. Es OPCIONAL en el request y no
+	// se guarda acá —eso pasa en Confirm—, pero si viene se contrasta contra los
+	// archivos de uso de la red y corta si no son de ese mes. Opcional a propósito:
+	// un front anterior a esta validación seguiría funcionando en vez de romperse
+	// con un 400, y el propio preview avisa de que no pudo verificar.
+	resultado, err := controller.service.Preview(ctx, subidos, strings.TrimSpace(c.PostForm("period")))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ginCommons.NewInternalServerError(err.Error()))
 		return

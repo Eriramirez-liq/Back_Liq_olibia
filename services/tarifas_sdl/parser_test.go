@@ -83,8 +83,13 @@ var areaEsperada = map[string]string{
 	"AFINIA": "", "AIRE": "",
 }
 
+// Los archivos de uso de la red del juego real son de 2026-04, y el parser exige
+// que el período elegido coincida con ellos. Los ADD son de 2026-02 y no se
+// validan: van dos meses atrás por diseño del negocio.
+const periodoDeLosReales = "2026-04"
+
 func TestParseInputs_ArchivosReales(t *testing.T) {
-	res := tarifas_sdl.ParseInputs(cargarArchivosReales(t))
+	res := tarifas_sdl.ParseInputs(cargarArchivosReales(t), periodoDeLosReales)
 
 	if len(res.CriticalErrors) > 0 {
 		t.Fatalf("el lote completo no debería dar errores críticos: %v", res.CriticalErrors)
@@ -189,7 +194,7 @@ func TestTarifas_CoincidenConElParserTypeScript(t *testing.T) {
 		t.Fatalf("el dorado tiene %d filas, se esperaban 105 (21 operadores × 5)", len(golden.Filas))
 	}
 
-	res := tarifas_sdl.ParseInputs(cargarArchivosReales(t))
+	res := tarifas_sdl.ParseInputs(cargarArchivosReales(t), periodoDeLosReales)
 	if len(res.CriticalErrors) > 0 {
 		t.Fatalf("errores críticos: %v", res.CriticalErrors)
 	}
@@ -259,7 +264,7 @@ func valorDe(t tarifas_sdl.Tarifas, nivel, propiedad string) (activa, reactiva f
 //
 // Acá se prueba en memoria; el mismo camino se usa sobre los datos persistidos.
 func TestAuditoria_RecalcularDesdeLosInsumosDaLoMismo(t *testing.T) {
-	res := tarifas_sdl.ParseInputs(cargarArchivosReales(t))
+	res := tarifas_sdl.ParseInputs(cargarArchivosReales(t), periodoDeLosReales)
 	if len(res.CriticalErrors) > 0 {
 		t.Fatalf("errores críticos: %v", res.CriticalErrors)
 	}
@@ -289,7 +294,7 @@ func TestAuditoria_RecalcularDesdeLosInsumosDaLoMismo(t *testing.T) {
 // de uso de la red. Es la regla que más fácil se invierte al portar, y el síntoma
 // sería un juego de tarifas plausible y equivocado para 14 de los 21 operadores.
 func TestComponentesDe_ElNTSaleDelArchivoQueCorresponde(t *testing.T) {
-	res := tarifas_sdl.ParseInputs(cargarArchivosReales(t))
+	res := tarifas_sdl.ParseInputs(cargarArchivosReales(t), periodoDeLosReales)
 	if len(res.CriticalErrors) > 0 {
 		t.Fatalf("errores críticos: %v", res.CriticalErrors)
 	}

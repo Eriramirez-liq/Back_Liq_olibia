@@ -27,6 +27,7 @@ import (
 // correspondía un 422 hace que el front cargue un lote inválido.
 
 type servicioSdlFake struct {
+	periodo   string
 	resultado tarifas_sdl.PreviewResult
 	loadID    string
 	tarifas   []repositories.SdlRate
@@ -42,8 +43,11 @@ type servicioSdlFake struct {
 	periodosRecibidos []string
 }
 
-func (f *servicioSdlFake) Preview(_ context.Context, files []tarifas_sdl.UploadedFile) (tarifas_sdl.PreviewResult, error) {
+func (f *servicioSdlFake) Preview(
+	_ context.Context, files []tarifas_sdl.UploadedFile, period string,
+) (tarifas_sdl.PreviewResult, error) {
 	f.archivos = files
+	f.periodo = period
 	return f.resultado, f.err
 }
 

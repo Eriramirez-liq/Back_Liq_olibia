@@ -102,7 +102,11 @@ type AuditResult struct {
 
 type TarifasSdlService interface {
 	// Preview parsea el lote y calcula. No escribe nada.
-	Preview(ctx context.Context, files []UploadedFile) (PreviewResult, error)
+	//
+	// El período es el que la persona eligió en Nueva carga. No se guarda acá —eso
+	// pasa en Confirm— pero se contrasta contra los archivos de uso de la red, que
+	// tienen que ser de ese mes.
+	Preview(ctx context.Context, files []UploadedFile, period string) (PreviewResult, error)
 	// Confirm persiste el lote y devuelve el id del cargue.
 	Confirm(ctx context.Context, period string, rows []PreviewRow, meta LoadMeta) (string, error)
 
@@ -181,11 +185,12 @@ func (service tarifasSdlService) completarNombres(
 func (service tarifasSdlService) Preview(
 	ctx context.Context,
 	files []UploadedFile,
+	period string,
 ) (PreviewResult, error) {
 	_, span := tracing.StartSpan(ctx, "services.tarifas_sdl.Preview")
 	defer span.End()
 
-	parseado := ParseInputs(files)
+	parseado := ParseInputs(files, period)
 	resultado := PreviewResult{
 		Rows:           []PreviewRow{},
 		Warnings:       parseado.Warnings,

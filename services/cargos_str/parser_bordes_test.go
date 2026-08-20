@@ -246,3 +246,87 @@ func TestParser_CeldaVaciaNoCuentaComoCero(t *testing.T) {
 		t.Error("EPM no apareció y tenía valor")
 	}
 }
+
+// ── El archivo de factura contra el período elegido ──────────────────────────
+//
+// El período lo fija la persona en Nueva carga, pero el archivo de factura dice
+// en su nombre de qué mes es. Cuando no coinciden hay que avisar: en los cargues
+// reales ya hay uno de 2026-05 hecho con el archivo de abril.
+
+// desajusteDePeriodo devuelve el mensaje de desajuste, si lo hay.
+func desajusteDePeriodo(mensajes []string) string {
+	for _, m := range mensajes {
+		if strings.Contains(m, "no es de ese mes") {
+			return m
+		}
+	}
+	return ""
+}
+
+func TestParser_FacturaDeOtroMesCortaLaCarga(t *testing.T) {
+	// Archivo de abril, período de mayo: es el caso real que se coló a la base.
+	res := cargos_str.ParseStrInputs([]cargos_str.UploadedFile{
+		{Name: "BalanceSTRTipoFactu2026-ABR.xlsx", Content: []byte("no importa el contenido")},
+	}, 2026, 5)
+
+	mensaje := desajusteDePeriodo(res.CriticalErrors)
+	if mensaje == "" {
+		t.Fatalf("el desajuste de período tiene que cortar la carga. Errores: %v", res.CriticalErrors)
+	}
+	// El mensaje tiene que decir los dos meses, o no se sabe qué corregir.
+	for _, esperado := range []string{"BalanceSTRTipoFactu2026-ABR.xlsx", "2026-04", "2026-05"} {
+		if !strings.Contains(mensaje, esperado) {
+			t.Errorf("el mensaje no menciona %q: %s", esperado, mensaje)
+		}
+	}
+	// Y no devuelve filas: por el modelo append-only, un cargue con el archivo del
+	// mes equivocado no se deshace desde la pantalla.
+	if len(res.Rows) != 0 {
+		t.Errorf("devolvió %d filas pese al desajuste de período", len(res.Rows))
+	}
+}
+
+func TestParser_FacturaDelMesElegidoNoCorta(t *testing.T) {
+	res := cargos_str.ParseStrInputs([]cargos_str.UploadedFile{
+		{Name: "BalanceSTRTipoFactu2026-MAY.xlsx", Content: []byte("no importa el contenido")},
+	}, 2026, 5)
+
+	if m := desajusteDePeriodo(res.CriticalErrors); m != "" {
+		t.Errorf("cortó por un desajuste que no existe: %s", m)
+	}
+}
+
+// Los ajustes SON de otros meses: cortar por ellos rompería toda carga.
+func TestParser_RefacturaDeOtroMesNoCorta(t *testing.T) {
+	res := cargos_str.ParseStrInputs([]cargos_str.UploadedFile{
+		{Name: "BalanceSTRTipoFactu2026-MAY.xlsx", Content: []byte("x")},
+		{Name: "BalanceSTRTipoReFactu2026-ENE-1.xlsx", Content: []byte("x")},
+		{Name: "BalanceSTRTipoReFactu2025-DIC-1.xlsx", Content: []byte("x")},
+	}, 2026, 5)
+
+	if m := desajusteDePeriodo(res.CriticalErrors); m != "" {
+		t.Errorf("cortó por un archivo de refactura, que por definición es de otro mes: %s", m)
+	}
+}
+
+// Sin mes en el nombre no se puede verificar. Se dice, en vez de dar por bueno
+// un archivo que nadie comprobó.
+func TestParser_FacturaSinMesEnElNombreAvisaQueNoSePudoVerificar(t *testing.T) {
+	res := cargos_str.ParseStrInputs([]cargos_str.UploadedFile{
+		{Name: "BalanceSTRTipoFactu.xlsx", Content: []byte("x")},
+	}, 2026, 5)
+
+	var encontrado bool
+	for _, a := range res.Warnings {
+		if strings.Contains(a, "no dice en su nombre de qué mes es") {
+			encontrado = true
+		}
+	}
+	if !encontrado {
+		t.Errorf("no avisó que no se pudo verificar el período. Avisos: %v", res.Warnings)
+	}
+	// Sin mes en el nombre no hay contra qué comparar: se avisa, no se bloquea.
+	if m := desajusteDePeriodo(res.CriticalErrors); m != "" {
+		t.Errorf("no debería cortar cuando el nombre no dice el mes: %s", m)
+	}
+}

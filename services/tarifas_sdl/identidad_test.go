@@ -14,7 +14,7 @@ import (
 // razón social; sin él parecerían filas duplicadas.
 
 func TestIdentidad_DeLos21Archivos(t *testing.T) {
-	res := tarifas_sdl.ParseInputs(cargarArchivosReales(t))
+	res := tarifas_sdl.ParseInputs(cargarArchivosReales(t), periodoDeLosReales)
 	if len(res.CriticalErrors) > 0 {
 		t.Fatalf("errores críticos: %v", res.CriticalErrors)
 	}
@@ -64,7 +64,7 @@ func TestIdentidad_DeLos21Archivos(t *testing.T) {
 // Dos pares comparten razón social y el negocio los quiere separados. Si el
 // parser los uniera, se perderían dos filas sin que nada falle.
 func TestIdentidad_LosParesQueComparteRazonSocialQuedanSeparados(t *testing.T) {
-	res := tarifas_sdl.ParseInputs(cargarArchivosReales(t))
+	res := tarifas_sdl.ParseInputs(cargarArchivosReales(t), periodoDeLosReales)
 	if len(res.CriticalErrors) > 0 {
 		t.Fatalf("errores críticos: %v", res.CriticalErrors)
 	}

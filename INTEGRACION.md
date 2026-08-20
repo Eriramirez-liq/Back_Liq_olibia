@@ -155,6 +155,43 @@ solo acá y sin desplegar.
 
 Más reciente primero. Cada entrada: qué cambió, por qué, y qué implica para el otro repo.
 
+### 2026-08-20 — El período elegido se contrasta contra los archivos, y corta si no cuadra
+
+**Backend.** Al dar vista previa, tanto en Cargos STR como en Tarifas SDL, el
+período que la persona eligió en Nueva carga se compara contra el que traen los
+archivos en el nombre. Si no coinciden, **error crítico**: no se procesa nada y el
+front deshabilita el confirmar.
+
+Qué se compara en cada módulo, y qué NO:
+
+| Módulo | Se valida | No se valida |
+|--------|-----------|--------------|
+| Cargos STR | `BalanceSTRTipoFactu<AAAA>-<MES>` | los `TipoReFactu`: son ajustes de meses anteriores, eso es lo que son |
+| Tarifas SDL | `Cargo_Cobro_Uso_Red-Definitivo<COD>-<AAAAMM>` | los `LiquidacionDefinitivos` del ADD: van dos meses atrás por diseño |
+
+Las dos reglas salieron de los cargues reales, no de suponer. En STR, cuatro
+cargues con el archivo del mismo mes y **uno de 2026-05 hecho con el de abril**. En
+SDL, seis cargues donde el archivo de uso coincide con el período y el ADD va
+siempre dos meses atrás, más **uno de 2026-07 hecho con los de junio**. O sea que
+el error que esto ataja ya ocurrió dos veces y quedó guardado.
+
+Es error y no aviso porque el modelo es append-only: un cargue con los archivos del
+mes equivocado no se deshace desde la pantalla. Quedan cifras de un mes guardadas
+bajo otro y el problema recién aparece cuando alguien concilia.
+
+Si el nombre no trae el mes, en cambio, solo se avisa: no hay contra qué comparar y
+bloquear ahí impediría cargar un archivo renombrado.
+
+**Cambio de contrato — el preview de SDL ahora recibe el período.** Antes solo
+recibía los archivos; el período llegaba en el confirm. El front lo manda en el
+campo `period` del multipart. Es **opcional** en el backend a propósito: si no
+llega no valida y lo dice en un aviso, así un front anterior a este cambio sigue
+funcionando en vez de romperse con un 400. Pero para que la validación opere,
+**front y back tienen que desplegarse juntos**.
+
+El preview de Cargos STR ya recibía `year` y `month`, así que ahí no cambió nada
+del contrato.
+
 ### 2026-08-19 — Tarifas SDL: el área sale de los archivos, y ajustes de la tabla
 
 **Backend.** El puerto de Tarifas SDL traía del motor TypeScript un mapa fijo de

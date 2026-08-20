@@ -132,7 +132,7 @@ func TestServicioSDL_PreviewCompletaNombresYCalcula(t *testing.T) {
 	agentes := agentesDePrueba()
 	servicio := servicioDePrueba(&sdlRepoFake{}, agentes)
 
-	res, err := servicio.Preview(context.Background(), cargarArchivosReales(t))
+	res, err := servicio.Preview(context.Background(), cargarArchivosReales(t), periodoDeLosReales)
 	if err != nil {
 		t.Fatalf("Preview: %v", err)
 	}
@@ -206,7 +206,7 @@ func TestServicioSDL_PreviewCortaSiFaltaUnNombre(t *testing.T) {
 
 	servicio := servicioDePrueba(&sdlRepoFake{}, agentes)
 
-	res, err := servicio.Preview(context.Background(), cargarArchivosReales(t))
+	res, err := servicio.Preview(context.Background(), cargarArchivosReales(t), periodoDeLosReales)
 	if err != nil {
 		t.Fatalf("Preview: %v", err)
 	}
@@ -225,7 +225,7 @@ func TestServicioSDL_PreviewPropagaElErrorDelCatalogo(t *testing.T) {
 	agentes := &agentesFake{err: errors.New("catálogo caído")}
 	servicio := servicioDePrueba(&sdlRepoFake{}, agentes)
 
-	res, err := servicio.Preview(context.Background(), cargarArchivosReales(t))
+	res, err := servicio.Preview(context.Background(), cargarArchivosReales(t), periodoDeLosReales)
 	if err != nil {
 		t.Fatalf("Preview: %v", err)
 	}
@@ -240,7 +240,7 @@ func filasParaConfirmar(t *testing.T) []tarifas_sdl.PreviewRow {
 	t.Helper()
 
 	servicio := servicioDePrueba(&sdlRepoFake{}, agentesDePrueba())
-	res, err := servicio.Preview(context.Background(), cargarArchivosReales(t))
+	res, err := servicio.Preview(context.Background(), cargarArchivosReales(t), periodoDeLosReales)
 	if err != nil || len(res.CriticalErrors) > 0 {
 		t.Fatalf("no se pudo armar el preview: %v %v", err, res.CriticalErrors)
 	}

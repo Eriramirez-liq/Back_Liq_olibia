@@ -6,6 +6,7 @@ import (
 	"bia-bills/repositories"
 	"bia-bills/services/cargos_str"
 	"bia-bills/services/tarifas_sdl"
+	"bia-bills/services/tc1"
 
 	"github.com/gin-gonic/gin"
 )
@@ -34,14 +35,22 @@ func RegisterLiquidations(apiPrefix *gin.RouterGroup) {
 
 	sdlRepository := repositories.NewLiquidationsSdlRepository(db)
 
+	tc1Repository := repositories.NewLiquidationsTc1Repository(db)
+
 	// ── Services ────────────────────────────────────────────────────────────
 	cargosStrService := cargos_str.NewCargosStrService(strRepository, agentsRepository)
 	tarifasSdlService := tarifas_sdl.NewTarifasSdlService(sdlRepository, agentsRepository)
+	// Los operadores que se esperan cargar cada período. Se reusa el catálogo de
+	// Tarifas SDL porque es el mismo universo: se verificó contra los 21 archivos
+	// reales de TC1 y los códigos coinciden uno a uno. Entra como dato, no como
+	// dependencia del servicio.
+	tc1Service := tc1.NewTc1Service(tc1Repository, tarifas_sdl.OperatorCodes())
 
 	// ── Controllers ─────────────────────────────────────────────────────────
 	healthController := controllers.NewLiquidationsHealthController(db)
 	cargosStrController := controllers.NewLiquidationsStrController(cargosStrService)
 	tarifasSdlController := controllers.NewLiquidationsSdlController(tarifasSdlService)
+	tc1Controller := controllers.NewLiquidationsTc1Controller(tc1Service)
 
 	// ── Rutas ───────────────────────────────────────────────────────────────
 	liquidationsGroup := apiPrefix.Group("/liquidations")
@@ -62,4 +71,13 @@ func RegisterLiquidations(apiPrefix *gin.RouterGroup) {
 	tarifasSdlGroup.GET("/loads", tarifasSdlController.Loads)
 	// Diagnóstico: recalcula desde los componentes guardados y compara.
 	tarifasSdlGroup.GET("/audit", tarifasSdlController.Audit)
+
+	// TC1 no tiene preview ni sube archivos: se parsea en el navegador —el de
+	// CELSIA_VALLE pesa 98 MB— y llegan las filas ya normalizadas.
+	tc1Group := liquidationsGroup.Group("/tc1")
+	tc1Group.POST("/confirm", tc1Controller.Confirm)
+	tc1Group.GET("", tc1Controller.Inputs)
+	tc1Group.GET("/periods", tc1Controller.Periods)
+	tc1Group.GET("/loads", tc1Controller.Loads)
+	tc1Group.GET("/status", tc1Controller.Status)
 }

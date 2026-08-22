@@ -56,6 +56,14 @@ func TestRegisterLiquidations_RutasDelContrato(t *testing.T) {
 		"GET /liquidations/tarifas-sdl/periods",
 		"GET /liquidations/tarifas-sdl/loads",
 		"GET /liquidations/tarifas-sdl/audit",
+
+		// TC1 no tiene preview: el archivo se parsea en el navegador y llegan las
+		// filas ya normalizadas al confirm.
+		"POST /liquidations/tc1/confirm",
+		"GET /liquidations/tc1",
+		"GET /liquidations/tc1/periods",
+		"GET /liquidations/tc1/loads",
+		"GET /liquidations/tc1/status",
 	}
 
 	for _, ruta := range esperadas {

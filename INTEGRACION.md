@@ -155,6 +155,64 @@ solo acá y sin desplegar.
 
 Más reciente primero. Cada entrada: qué cambió, por qué, y qué implica para el otro repo.
 
+### 2026-08-22 — TC1 pasa a file-compiler, y el parser corre en el navegador
+
+Tercer módulo migrado. Guarda en **una sola tabla** —`liquidations_tc1_inputs` en
+file-compiler— y no calcula nada: TC1 no produce valores derivados, así que no hay
+espejo en calculator-prices.
+
+**El parser corre en el NAVEGADOR, y eso no es una preferencia de diseño.** El
+archivo de CELSIA_VALLE pesa 98 MB con 743.530 filas, y el de CHEC 82 MB. El parser
+filtra por `ID_COMERCIALIZADOR = 62371` (BIA) y de esas 743.530 quedan **127**. Los
+21 operadores juntos dan ~3.500 fronteras por período. Subir el crudo sería empujar
+274 MB por el gateway para guardar unos kilobytes.
+
+Por eso el backend en Go **no tiene preview**: recibe las filas ya normalizadas en
+JSON y las valida —período con forma, operador presente, fronteras ni vacías ni
+repetidas— antes de guardar.
+
+El parser se portó **tal cual** desde `lib/parsers/tc1.ts`, sin tocar el mapeo por
+operador. Ese mapeo es un híbrido: mapea las 33 columnas canónicas por POSICIÓN
+—el layout CREG es fijo— y después pisa 7 columnas críticas con lo detectado por
+NOMBRE, que es lo que absorbe las rarezas de cada OR: el typo de CEDENAR
+(`FROTERA` sin N), EMCALI que llama `SIC` a la frontera y trunca `IDCOMER`, ENEL
+que intercala una columna `CX` y desalinea el mapeo posicional, CENS que trae dos
+columnas de nivel de tensión donde la buena es la primera, ESSA con filas vacías
+antes del encabezado, AFINIA con *null bytes* alrededor de los valores.
+
+Verificado contra los **21 archivos reales**: los 21 parsean, cero errores críticos,
+las 33 columnas presentes y frontera válida en todas las filas. Y punta a punta
+contra las bases: CENS parsea, guarda y se lee de vuelta.
+
+**Append-only, con una diferencia respecto de STR y SDL.** Allá lo vigente es la
+fila más reciente porque hay UNA por período y operador. Acá hay muchas —una por
+frontera— así que lo vigente es el **último `load_id`**, y se traen todas sus filas.
+Desempatar fila por fila mezclaría fronteras de dos cargues. La versión TypeScript
+borraba las filas previas del mismo operador y período; el criterio de "foto del
+estado actual" es correcto, borrar no: perdía quién cargó qué y cuándo.
+
+**Endpoints nuevos** (`/ms-bill/liquidations/tc1/...`): `confirm`, listado, `periods`,
+`loads` y `status`. Este último cruza los 21 operadores esperados contra los que ya
+cargaron, y es lo que alimenta el contador de la pantalla.
+
+**Front:**
+
+- El parser vive en `utils/parseTc1.ts` y corre en el navegador.
+- TC1 aparece en el historial de cargas como cuarta fuente.
+- Estado del período ahora tiene **selector de mes**. Antes estaba fijo en el mes de
+  consumo en curso, y eso hacía que el panel contradijera lo que la persona acababa
+  de hacer: al cargar el TC1 de enero, el contador seguía en 0/21 porque miraba
+  julio. Afecta a los cinco chips, no solo al de TC1.
+- Los chips de SDL por Operador y TC1 muestran el avance `3/21` y, al hacer clic,
+  la lista de operadores que faltan. Son las dos fuentes donde cada OR manda su
+  propio archivo; las demás son un archivo único y les alcanza con
+  cargada/pendiente.
+
+**Pendiente, y conviene tenerlo presente:** migrar TC1 no cierra su circuito.
+Conciliaciones, Congruencia y Gestiones lo siguen leyendo de `registroTC1` en
+Supabase. El orden natural es que el próximo módulo sea Conciliaciones, su
+consumidor principal.
+
 ### 2026-08-20 — El período elegido se contrasta contra los archivos, y corta si no cuadra
 
 **Backend.** Al dar vista previa, tanto en Cargos STR como en Tarifas SDL, el
@@ -521,6 +579,13 @@ token real de Firebase** (requiere login en browser): la comprobación pendiente
 
 ## 6. Pendientes y decisiones abiertas
 
+- **TC1 — probado en local, falta el trasvase a bia-bills.** El módulo corre contra
+  file-compiler desde el arnés y el front lo consume en localhost. Su tabla ya está
+  creada en dev.
+- **Migrar TC1 no cierra su circuito.** Conciliaciones, Congruencia, Gestiones y el
+  dashboard lo siguen leyendo de `registroTC1` en Supabase. Hasta que se migre
+  Conciliaciones —su consumidor principal— van a convivir las dos copias: la nueva
+  en file-compiler y la vieja, que ya no se alimenta.
 - **Tarifas SDL — probado en local, falta el trasvase a bia-bills.** El módulo corre contra las
   bases de BIA desde el arnés local (`cmd/liquidations-dev`, puerto 4110) y el front lo consume en
   localhost. Falta pasar los archivos a bia-bills y desplegar en cactus. **El trasvase incluye el

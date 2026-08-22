@@ -1,25 +1,26 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { ejecutarCardMetabase, MetabaseError } from "@/lib/integrations/metabase"
-import { mapearFilasMetabase } from "@/lib/parsers/facturacion-metabase"
+import { consultarFacturacionBia, BiaBillsError } from "@/lib/integrations/bia-bills"
+import { mapearFilasBiaBills } from "@/lib/parsers/facturacion-bia-bills"
 
 /**
  * POST /api/cargas/preview-facturacion
  *
- * Reemplaza la carga de archivo para Facturacion BIA con una consulta
- * directa a Metabase (card 73360 — validador-sdl).
+ * Insumo maestro Facturacion BIA. Se consulta directamente al microservicio
+ * `bia-bills` (GET /ms-bill/billing-variables?period=M-YYYY), reemplazando la
+ * card de Metabase 73360 (validador-sdl).
+ *
+ * El período de conciliación seleccionado en el wizard ({anio, mes} = mes de
+ * CONSUMO) se pasa tal cual como filtro del endpoint (formato "M-YYYY").
  *
  * Body: { anio, mes }
  * Response: { preview, filasCompletas, total, alertas, erroresCriticos,
  *             existeCargaPrevia, cargaPreviaId, columnas }
  */
 
-export const runtime    = "nodejs"
+export const runtime     = "nodejs"
 export const maxDuration = 60
-
-// ID de la card de Metabase: https://bia.metabaseapp.com/question/73360-validador-sdl
-const METABASE_CARD_ID = 73360
 
 export async function POST(request: NextRequest) {
   const session = await auth()
@@ -42,55 +43,48 @@ export async function POST(request: NextRequest) {
   const ahora = new Date()
   if (anio > ahora.getFullYear() || (anio === ahora.getFullYear() && mes > ahora.getMonth() + 1)) {
     return NextResponse.json(
-      { error: "No se pueden cargar archivos para periodos futuros." },
+      { error: "No se pueden cargar registros para periodos futuros." },
       { status: 400 },
     )
   }
 
-  // 1. Ejecutar query en Metabase
-  let resultado
+  const periodoStr  = `${anio}-${String(mes).padStart(2, "0")}` // clave interna "AAAA-MM"
+  const periodParam = `${mes}-${anio}`                          // formato del endpoint "M-YYYY"
+
+  // 1. Consultar el servicio de Facturación BIA (bia-bills) filtrando por período
+  let registros
   try {
-    resultado = await ejecutarCardMetabase({ cardId: METABASE_CARD_ID })
+    registros = await consultarFacturacionBia({ period: periodParam })
   } catch (e) {
-    if (e instanceof MetabaseError) {
+    if (e instanceof BiaBillsError) {
       return NextResponse.json(
         { error: e.message, detalle: e.body ?? undefined, status: e.status },
         { status: 502 },
       )
     }
     const msg = e instanceof Error ? e.message : String(e)
-    return NextResponse.json({ error: `Error al consultar Metabase: ${msg}` }, { status: 500 })
+    return NextResponse.json({ error: `Error al consultar Facturación BIA: ${msg}` }, { status: 500 })
   }
 
   const alertas: string[]         = []
   const erroresCriticos: string[] = []
-  const periodoStr = `${anio}-${String(mes).padStart(2, "0")}`
 
-  // 2. Mapear las filas crudas de Metabase al shape FilaFacturacion
-  //    (deriva nivel_tension + propiedad_activos del NT, normaliza periodo,
-  //    valida columnas requeridas).
-  const mapeo = mapearFilasMetabase(resultado.rows, resultado.columnas)
+  // 2. Mapear al shape FilaFacturacion (normaliza propiedad de activos y toma
+  //    el período de conciliación como clave). El endpoint ya viene filtrado
+  //    por período, así que no se re-filtra.
+  const mapeo = mapearFilasBiaBills(registros, periodoStr)
   alertas.push(...mapeo.alertas)
   erroresCriticos.push(...mapeo.erroresCriticos)
-  if (mapeo.erroresCriticos.length > 0) {
-    return NextResponse.json({
-      preview: [], filasCompletas: [], total: 0,
-      columnas: resultado.columnas,
-      alertas, erroresCriticos,
-      existeCargaPrevia: false, cargaPreviaId: undefined,
-    })
-  }
 
-  // 3. Filtrar por periodo seleccionado en el wizard
-  const filtradas = mapeo.filas.filter(f => f.periodo === periodoStr)
+  const filtradas = mapeo.filas
+  const columnas  = filtradas.length > 0 ? Object.keys(filtradas[0]!) : []
 
   alertas.push(
-    `Metabase: ${resultado.rows.length} filas totales, ${filtradas.length} coinciden con period = ${periodoStr}.`,
+    `Facturación BIA (bia-bills): ${filtradas.length} fronteras para period = ${periodoStr}.`,
   )
-
   if (filtradas.length === 0) {
     alertas.push(
-      `No hay registros para el periodo ${periodoStr}. Verifica que la query de Metabase tenga datos cargados para ese mes.`,
+      `No hay registros para el periodo ${periodoStr}. Verifica que el servicio bia-bills tenga datos para ese mes.`,
     )
   }
 
@@ -120,7 +114,7 @@ export async function POST(request: NextRequest) {
     preview:          filtradas.slice(0, 20),
     filasCompletas:   filtradas,
     total:            filtradas.length,
-    columnas:         resultado.columnas,
+    columnas,
     alertas,
     erroresCriticos,
     existeCargaPrevia,

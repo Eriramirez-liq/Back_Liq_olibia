@@ -29,7 +29,8 @@ Reglas que se rompen seguido:
 | [INTEGRACION.md](./INTEGRACION.md) | Conexión con olibia-web: contrato, bitácora, pendientes |
 | [docs/backend/conexion-olibia-web.md](./docs/backend/conexion-olibia-web.md) | Mecanismo de auth entre repos, envs, troubleshooting |
 | [docs/backend/api/netsuite-cargos-str.md](./docs/backend/api/netsuite-cargos-str.md) | Integración NetSuite |
-| [docs/runbooks/](./docs/runbooks/) | Prisma migrate, lote NetSuite colgado |
+| [docs/runbooks/arranque-en-una-maquina-nueva.md](./docs/runbooks/arranque-en-una-maquina-nueva.md) | Levantar todo desde cero: qué no viaja por git, los tres procesos, las trampas |
+| [docs/runbooks/](./docs/runbooks/) | Prisma migrate, lote NetSuite colgado, despliegue |
 | [CONTEXTO_MIGRACION.md](./CONTEXTO_MIGRACION.md) | Historia de la migración Flask → Next |
 
 ## Comandos

@@ -120,6 +120,13 @@ func (controller LiquidationsTc1Controller) Loads(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"loads": cargues})
 }
 
+// Operators lista los operadores de red que reportan TC1.
+//
+// GET /liquidations/tc1/operators
+func (controller LiquidationsTc1Controller) Operators(c *gin.Context) {
+	c.JSON(http.StatusOK, controller.service.Operators())
+}
+
 // Status dice cuántos operadores ya cargaron su TC1 del período y cuáles faltan.
 //
 // GET /liquidations/tc1/status?period=2026-02

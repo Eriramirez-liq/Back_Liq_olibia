@@ -80,4 +80,5 @@ func RegisterLiquidations(apiPrefix *gin.RouterGroup) {
 	tc1Group.GET("/periods", tc1Controller.Periods)
 	tc1Group.GET("/loads", tc1Controller.Loads)
 	tc1Group.GET("/status", tc1Controller.Status)
+	tc1Group.GET("/operators", tc1Controller.Operators)
 }

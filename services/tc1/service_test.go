@@ -246,3 +246,14 @@ func TestServicio_StatusSinCarguesTodosPendientes(t *testing.T) {
 		t.Errorf("cargados=%v pendientes=%v", estado.Loaded, estado.Pending)
 	}
 }
+
+// El selector de operador de Nueva carga sale de acá, no del backend TypeScript:
+// ese lee de Supabase y en desarrollo no está desplegado, así que la lista
+// quedaba vacía y no se podía cargar un TC1.
+func TestServicio_OperatorsDevuelveElCatalogo(t *testing.T) {
+	operadores := servicioConCatalogo(&repoFake{}).Operators()
+
+	if len(operadores) != 3 || operadores[0] != "CENS" {
+		t.Errorf("operadores = %v, se esperaba el catálogo en su orden", operadores)
+	}
+}

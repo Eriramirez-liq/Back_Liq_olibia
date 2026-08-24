@@ -98,6 +98,9 @@ type Tc1Service interface {
 	Periods(ctx context.Context) ([]string, error)
 	// Status dice qué operadores ya cargaron su TC1 del período y cuáles faltan.
 	Status(ctx context.Context, period string) (Tc1Status, error)
+	// Operators lista los operadores de red que reportan TC1, para que la pantalla
+	// de Nueva carga sepa entre cuáles elegir.
+	Operators() []string
 }
 
 type tc1Service struct {
@@ -113,6 +116,15 @@ func NewTc1Service(
 	expected []string,
 ) Tc1Service {
 	return tc1Service{repository: repository, expected: expected}
+}
+
+// Operators son los operadores de red que reportan TC1.
+//
+// Existe porque el selector de operador de Nueva carga salía del backend
+// TypeScript, que lee de Supabase y no está desplegado en desarrollo: la lista
+// quedaba vacía y no se podía cargar un TC1. Ahora sale de acá.
+func (service tc1Service) Operators() []string {
+	return service.expected
 }
 
 // Status cruza los operadores esperados contra los que ya cargaron.

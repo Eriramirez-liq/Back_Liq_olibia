@@ -5,6 +5,7 @@ import (
 	"bia-bills/providers/postgres"
 	"bia-bills/repositories"
 	"bia-bills/services/cargos_str"
+	"bia-bills/services/proyeccion"
 	"bia-bills/services/tarifas_sdl"
 	"bia-bills/services/tc1"
 
@@ -46,11 +47,16 @@ func RegisterLiquidations(apiPrefix *gin.RouterGroup) {
 	// dependencia del servicio.
 	tc1Service := tc1.NewTc1Service(tc1Repository, tarifas_sdl.OperatorCodes())
 
+	// Proyección compone los dos módulos ya migrados: las tarifas de SDL y los
+	// cargos de STR. No tiene repositorio propio porque no guarda nada.
+	proyeccionService := proyeccion.NewProyeccionService(sdlRepository, strRepository)
+
 	// ── Controllers ─────────────────────────────────────────────────────────
 	healthController := controllers.NewLiquidationsHealthController(db)
 	cargosStrController := controllers.NewLiquidationsStrController(cargosStrService)
 	tarifasSdlController := controllers.NewLiquidationsSdlController(tarifasSdlService)
 	tc1Controller := controllers.NewLiquidationsTc1Controller(tc1Service)
+	proyeccionController := controllers.NewLiquidationsProyeccionController(proyeccionService)
 
 	// ── Rutas ───────────────────────────────────────────────────────────────
 	liquidationsGroup := apiPrefix.Group("/liquidations")
@@ -81,4 +87,9 @@ func RegisterLiquidations(apiPrefix *gin.RouterGroup) {
 	tc1Group.GET("/loads", tc1Controller.Loads)
 	tc1Group.GET("/status", tc1Controller.Status)
 	tc1Group.GET("/operators", tc1Controller.Operators)
+
+	// Proyección Cargos OR: por ahora solo los precios y el valor STR. La demanda
+	// sigue en Facturación, que no está migrada.
+	proyeccionGroup := liquidationsGroup.Group("/proyeccion")
+	proyeccionGroup.GET("/prices", proyeccionController.Prices)
 }

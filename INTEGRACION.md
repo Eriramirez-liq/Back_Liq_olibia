@@ -155,6 +155,63 @@ solo acá y sin desplegar.
 
 Más reciente primero. Cada entrada: qué cambió, por qué, y qué implica para el otro repo.
 
+### 2026-08-25 — Proyección Cargos OR muestra lo que ya está migrado
+
+La pestaña se veía **vacía**, y no por un bug: su endpoint arma la lista de meses
+desde Facturación —`registroFacturacion` en Supabase— y si no hay meses devuelve
+`{ meses: [] }`, aunque haya tarifas y cargos cargados en las bases de BIA.
+
+Toda la proyección cuelga de UNA variable, la demanda del mes, que también sale de
+Facturación: con ella el motor reparte la energía por nivel, calcula la reactiva y
+la STR Energy, y valoriza. Eso no se puede migrar hasta que se migre Facturación.
+
+Lo que **sí** estaba disponible y no se mostraba: los precios por nivel de tensión
+—de las tarifas SDL— y el valor STR del mes. Las dos cosas ya viven en
+`calculator-prices`.
+
+**Endpoint nuevo**: `GET /liquidations/proyeccion/prices?months=N`. Devuelve por
+período los seis precios (activa y reactiva por nivel), el valor STR y los
+porcentajes del reparto. No tiene repositorio propio: compone los de STR y SDL,
+que ya existían.
+
+Cuatro decisiones que conviene no deshacer:
+
+- **Los meses salen de la unión** de los que tienen tarifas y los que tienen cargos,
+  no de Facturación. Es lo que hace que la pantalla muestre algo.
+- **El promedio por nivel replica el del endpoint viejo.** Aquella tabla guardaba
+  las tarifas en formato LARGO —una fila por operador, nivel y propiedad— y
+  promediaba todas las del nivel. Nuestra tabla es ANCHA, así que el equivalente es:
+  el nivel 1 promedia sus TRES propiedades y los niveles 2 y 3 la única que tienen.
+  Con 21 operadores son 63 valores para N1 y 21 para cada otro. Promediar solo una
+  propiedad daría otro número y cambiaría la proyección sin que nadie lo pida.
+- **Sin dato va `null`, no cero.** 2025-12 tiene cargos STR y no tiene tarifas: cero
+  diría "la tarifa es cero".
+- **El valor STR no se proyecta.** Los precios sí, promediando los últimos seis
+  meses con precio —la ventana del motor original—. El total en COP es plata que ya
+  se liquidó o todavía no existe; proyectarlo daría un número que parece real.
+
+**Front.** La pantalla no cambió de estructura: el `FilaMes` que ya renderizaba
+contempla nulos —los necesita para los meses proyectados— así que el hook nuevo
+devuelve la misma forma con la demanda en `null`. Los dos orígenes conviven: si el
+endpoint viejo responde con meses se usa **ese**, porque es el único con la demanda.
+
+Ajustes de la matriz, todos pedidos: se quitó el aviso de demanda pendiente y la
+columna de %, los meses van de izquierda a derecha con los proyectados al final, y
+el encabezado y la primera columna quedan fijos.
+
+Dos cosas que costaron encontrar y están comentadas en el código:
+
+1. **`sticky top-0` no sirve sin tope de alto.** El contenedor tenía solo
+   `overflow-x-auto`, así que el que scrolleaba en vertical era la página y el
+   encabezado no tenía contra qué pegarse. Se acotó a `max-h-[70vh] overflow-auto`.
+2. **Una celda con `colSpan` que abarca toda la tabla no se puede fijar.** Los
+   títulos de sección se deslizaban porque su celda ya empieza en el borde izquierdo
+   y mide lo mismo que la tabla. Ahora el título va en su propia celda del ancho de
+   la primera columna, con una de relleno al lado.
+
+**Pendiente:** la demanda, la energía por nivel, el precio STR por kWh y la
+valorización siguen esperando la migración de Facturación.
+
 ### 2026-08-22 — TC1 pasa a file-compiler, y el parser corre en el navegador
 
 Tercer módulo migrado. Guarda en **una sola tabla** —`liquidations_tc1_inputs` en
@@ -579,6 +636,9 @@ token real de Firebase** (requiere login en browser): la comprobación pendiente
 
 ## 6. Pendientes y decisiones abiertas
 
+- **Proyección Cargos OR — probado en local, falta el trasvase a bia-bills.** Muestra
+  precios y valor STR desde las bases de BIA; el resto de la matriz espera a que se
+  migre Facturación, que es de donde sale la demanda.
 - **TC1 — probado en local, falta el trasvase a bia-bills.** El módulo corre contra
   file-compiler desde el arnés y el front lo consume en localhost. Su tabla ya está
   creada en dev.

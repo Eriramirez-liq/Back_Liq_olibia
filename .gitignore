@@ -28,6 +28,9 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+# Cualquier variante: .env.productions traía tokens de NPM y llaves de Firebase de
+# producción y estaba quedando fuera de estos patrones.
+.env.*
 
 # vercel
 .vercel

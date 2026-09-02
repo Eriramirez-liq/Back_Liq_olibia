@@ -66,6 +66,13 @@ func TestRegisterLiquidations_RutasDelContrato(t *testing.T) {
 		"GET /liquidations/tc1/status",
 		"GET /liquidations/tc1/operators",
 
+		"POST /liquidations/sdl-operador/confirm",
+		"GET /liquidations/sdl-operador",
+		"GET /liquidations/sdl-operador/periods",
+		"GET /liquidations/sdl-operador/loads",
+		"GET /liquidations/sdl-operador/status",
+		"GET /liquidations/sdl-operador/operators",
+
 		"GET /liquidations/proyeccion/prices",
 	}
 

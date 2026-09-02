@@ -1,0 +1,500 @@
+{
+  "_nota": "Extraído de Supabase (configuracion_or) el 2026-09-01. Es la fuente de verdad de los mapeos por OR mientras se migra SDL por Operador a código.",
+  "operadores": [
+    {
+      "codigo": "AFINIA",
+      "nombre": "Afinia",
+      "activo": true,
+      "mapeo_sdl": {
+        "hoja": 0,
+        "columnas": {
+          "periodo": null,
+          "factor_m": "M",
+          "valor_cop": "PEAJES REGIONALES REGULADOS OTROS",
+          "energia_kwh": "CONSUMO",
+          "nivel_tension": "NIVEL TENSION",
+          "codigo_frontera": "SIC",
+          "propiedad_activos": "PROPIEDAD",
+          "valor_reactiva_cop": "PEN. ENERGIA REACTIVA PEAJES",
+          "energia_reactiva_cap_pen": null,
+          "energia_reactiva_ind_pen": "ENERGIA REACTIVA PEAJES"
+        },
+        "fila_inicio": 2,
+        "tipo_archivo": "xlsx",
+        "separador_csv": ","
+      }
+    },
+    {
+      "codigo": "AIRE",
+      "nombre": "Aire",
+      "activo": true,
+      "mapeo_sdl": null
+    },
+    {
+      "codigo": "BAJO_PUTUMAYO",
+      "nombre": "Bajo Putumayo",
+      "activo": true,
+      "mapeo_sdl": null
+    },
+    {
+      "codigo": "CEDENAR",
+      "nombre": "Cedenar",
+      "activo": true,
+      "mapeo_sdl": {
+        "hoja": 0,
+        "columnas": {
+          "periodo": null,
+          "factor_m": null,
+          "valor_cop": "VALOR TARIFA",
+          "energia_kwh": "Activa",
+          "nivel_tension": "NIVEL DE TENSION",
+          "codigo_frontera": "CODIGO SIC",
+          "propiedad_activos": null,
+          "valor_reactiva_cop": null,
+          "energia_reactiva_cap_pen": null,
+          "energia_reactiva_ind_pen": "Penalizada"
+        },
+        "fila_inicio": 2,
+        "tipo_archivo": "xlsx",
+        "separador_csv": ","
+      }
+    },
+    {
+      "codigo": "CELSIA_TOLIMA",
+      "nombre": "Celsia Tolima",
+      "activo": true,
+      "mapeo_sdl": {
+        "hoja": 0,
+        "columnas": {
+          "periodo": null,
+          "factor_m": "Factor M",
+          "valor_cop": "$Peaje Activa",
+          "energia_kwh": "Activa KWh",
+          "nivel_tension": "Nivel Tensi?",
+          "codigo_frontera": "C?igo SIC",
+          "propiedad_activos": "Propiedad Activo",
+          "valor_reactiva_cop": "$Peaje Reactiva",
+          "energia_reactiva_cap_pen": "Reactiva Capacitiva Penal kVAr",
+          "energia_reactiva_ind_pen": "Reactiva Inductiva Penalizada kVAr"
+        },
+        "fila_inicio": 2,
+        "tipo_archivo": "csv",
+        "separador_csv": ";"
+      }
+    },
+    {
+      "codigo": "CELSIA_VALLE",
+      "nombre": "Celsia Valle",
+      "activo": true,
+      "mapeo_sdl": {
+        "hoja": 0,
+        "columnas": {
+          "periodo": null,
+          "factor_m": "Factor M",
+          "valor_cop": "$Peaje Activa",
+          "energia_kwh": "Activa KWh",
+          "nivel_tension": "Nivel Tensi?",
+          "codigo_frontera": "C?igo SIC",
+          "propiedad_activos": "Propiedad Activo",
+          "valor_reactiva_cop": " $Peaje Reactiva ",
+          "energia_reactiva_cap_pen": "Reactiva Capacitiva Penal kVAr",
+          "energia_reactiva_ind_pen": "Reactiva Inductiva Penalizada kVAr"
+        },
+        "fila_inicio": 2,
+        "tipo_archivo": "csv",
+        "separador_csv": ";"
+      }
+    },
+    {
+      "codigo": "CENS",
+      "nombre": "Cens",
+      "activo": true,
+      "mapeo_sdl": {
+        "hoja": 0,
+        "columnas": {
+          "periodo": null,
+          "factor_m": "Factor M",
+          "valor_cop": "Valor Activa",
+          "energia_kwh": "Activa",
+          "nivel_tension": "NT_PRO",
+          "codigo_frontera": "Código SIC",
+          "tarifa_reactiva": "Tarifa Reactiva",
+          "propiedad_activos": null,
+          "valor_reactiva_cop": "Valor R_Inductiva",
+          "energia_reactiva_cap_pen": "R_Capacitiva",
+          "energia_reactiva_ind_pen": "R_Inductiva"
+        },
+        "fila_inicio": 2,
+        "tipo_archivo": "xlsx",
+        "separador_csv": ","
+      }
+    },
+    {
+      "codigo": "CEO",
+      "nombre": "CEO",
+      "activo": true,
+      "mapeo_sdl": {
+        "hoja": 0,
+        "columnas": {
+          "periodo": "Periodo",
+          "factor_m": "Factor_m",
+          "valor_cop": "$ Peaje Activa",
+          "energia_kwh": "Activa KWh",
+          "nivel_tension": "Nivel Tensión",
+          "codigo_frontera": "Código SIC",
+          "tarifa_reactiva": "Tarifa Reactiva $/kVAr",
+          "propiedad_activos": "Propiedad Activo",
+          "valor_reactiva_cop": "$ Peaje Reactiva",
+          "energia_reactiva_cap_pen": null,
+          "energia_reactiva_ind_pen": "Reactiva Inductiva Penal kVAr"
+        },
+        "fila_inicio": 2,
+        "tipo_archivo": "xlsx",
+        "separador_csv": ","
+      }
+    },
+    {
+      "codigo": "CETSA",
+      "nombre": "Cetsa",
+      "activo": true,
+      "mapeo_sdl": {
+        "hoja": 0,
+        "columnas": {
+          "periodo": null,
+          "factor_m": "Factor M",
+          "valor_cop": "$Peaje Activa",
+          "energia_kwh": "Activa KWh",
+          "nivel_tension": "Nivel Tensi?",
+          "codigo_frontera": "C?igo SIC",
+          "propiedad_activos": "Propiedad Activo",
+          "valor_reactiva_cop": "$Peaje Reactiva",
+          "energia_reactiva_cap_pen": "Reactiva Capacitiva Penal kVAr",
+          "energia_reactiva_ind_pen": "Reactiva Inductiva Penalizada kVAr"
+        },
+        "fila_inicio": 2,
+        "tipo_archivo": "csv",
+        "separador_csv": ";"
+      }
+    },
+    {
+      "codigo": "CHEC",
+      "nombre": "Chec",
+      "activo": true,
+      "mapeo_sdl": {
+        "hoja": 0,
+        "columnas": {
+          "periodo": null,
+          "factor_m": "FACTOR M",
+          "valor_cop": "LIQUIDACION ACTIVA",
+          "energia_kwh": "ENERGIA ACTIVA",
+          "nivel_tension": "NIVEL TENSION",
+          "codigo_frontera": "FRONTERA",
+          "tarifa_reactiva": "CARGO REACTIVO",
+          "propiedad_activos": null,
+          "valor_reactiva_cop": "LIQUIDACION REACTIVA",
+          "energia_reactiva_cap_pen": null,
+          "energia_reactiva_ind_pen": "TOTAL ENERGIA REACTIVA"
+        },
+        "fila_inicio": 2,
+        "tipo_archivo": "xlsx",
+        "separador_csv": ",",
+        "codigo_frontera_split": "-"
+      }
+    },
+    {
+      "codigo": "DISPAC",
+      "nombre": "Dispac",
+      "activo": true,
+      "mapeo_sdl": null
+    },
+    {
+      "codigo": "EBSA",
+      "nombre": "EBSA",
+      "activo": true,
+      "mapeo_sdl": {
+        "hoja": 0,
+        "columnas": {
+          "periodo": "PERIODO",
+          "factor_m": "VALOR M",
+          "valor_cop": "VALOR",
+          "energia_kwh": "KW-H",
+          "nivel_tension": "NT",
+          "codigo_frontera": "CODIGO SIC",
+          "propiedad_activos": null,
+          "valor_reactiva_cop": null,
+          "energia_reactiva_cap_pen": null,
+          "energia_reactiva_ind_pen": "REACTIVA"
+        },
+        "fila_inicio": 2,
+        "tipo_archivo": "xlsx",
+        "separador_csv": ","
+      }
+    },
+    {
+      "codigo": "EDEQ",
+      "nombre": "Edeq",
+      "activo": true,
+      "mapeo_sdl": {
+        "hoja": 0,
+        "columnas": {
+          "periodo": null,
+          "factor_m": "Factor M (Energia Reactiva )",
+          "valor_cop": "Valor Activa",
+          "energia_kwh": "Energía Activa",
+          "nivel_tension": "Nivel de Tensión  de la Frontera",
+          "codigo_frontera": "CODIGO SIC",
+          "nombre_frontera": "DESCRIPCIÓN CLIENTE",
+          "propiedad_activos": "Propiedad",
+          "valor_reactiva_cop": "Valor Reactiva Inductiva Penalizada",
+          "energia_reactiva_cap_pen": "Energía Reactiva Capacitiva Penalizada",
+          "energia_reactiva_ind_pen": "Energía Reactiva Inductiva Penalizada"
+        },
+        "fila_inicio": 2,
+        "tipo_archivo": "xlsx",
+        "separador_csv": ","
+      }
+    },
+    {
+      "codigo": "EEP_CARTAGO",
+      "nombre": "EEP Cartago",
+      "activo": true,
+      "mapeo_sdl": {
+        "hoja": 0,
+        "columnas": {
+          "periodo": null,
+          "factor_m": "Factor M",
+          "valor_cop": "Valor $ Activa",
+          "tarifa_sdl": "Tarifa Activa",
+          "energia_kwh": "Energía Activa ",
+          "nivel_tension": "Nivel Tension",
+          "codigo_frontera": "SIC",
+          "nombre_frontera": "Cliente",
+          "tarifa_reactiva": "Tarifa Reactiva",
+          "propiedad_activos": null,
+          "valor_reactiva_cop": "Valor $ Reactiva Inductiva",
+          "energia_reactiva_cap_pen": "Energía Reactiva Capacitiva",
+          "energia_reactiva_ind_pen": "Energía Reactiva Inductiva"
+        },
+        "fila_inicio": 3,
+        "tipo_archivo": "xlsx",
+        "separador_csv": ","
+      }
+    },
+    {
+      "codigo": "EEP_PEREIRA",
+      "nombre": "EEP Pereira",
+      "activo": true,
+      "mapeo_sdl": {
+        "hoja": 0,
+        "columnas": {
+          "periodo": null,
+          "factor_m": "Factor M",
+          "valor_cop": "Valor $ Activa",
+          "tarifa_sdl": "Tarifa Activa",
+          "energia_kwh": "Energía Activa ",
+          "nivel_tension": "Nivel Tension",
+          "codigo_frontera": "SIC",
+          "nombre_frontera": "Cliente",
+          "tarifa_reactiva": "Tarifa Reactiva",
+          "propiedad_activos": null,
+          "valor_reactiva_cop": "Valor $ Reactiva Inductiva",
+          "energia_reactiva_cap_pen": "Energía Reactiva Capacitiva",
+          "energia_reactiva_ind_pen": "Energía Reactiva Inductiva"
+        },
+        "fila_inicio": 3,
+        "tipo_archivo": "xlsx",
+        "separador_csv": ","
+      }
+    },
+    {
+      "codigo": "ELECTROCAQUETA",
+      "nombre": "Electrocaquetá",
+      "activo": true,
+      "mapeo_sdl": null
+    },
+    {
+      "codigo": "ELECTROHUILA",
+      "nombre": "Electrohuila",
+      "activo": true,
+      "mapeo_sdl": null
+    },
+    {
+      "codigo": "EMCALI",
+      "nombre": "Emcali",
+      "activo": true,
+      "mapeo_sdl": null
+    },
+    {
+      "codigo": "EMSA",
+      "nombre": "Emsa",
+      "activo": true,
+      "mapeo_sdl": {
+        "hoja": 0,
+        "columnas": {
+          "periodo": null,
+          "factor_m": null,
+          "valor_cop": null,
+          "tarifa_sdl": null,
+          "energia_kwh": "kWhR",
+          "nivel_tension": null,
+          "codigo_frontera": "CODIGO",
+          "tarifa_reactiva": null,
+          "propiedad_activos": null,
+          "valor_reactiva_cop": null,
+          "codigo_frontera_split": null,
+          "energia_reactiva_cap_pen": null,
+          "energia_reactiva_ind_pen": null
+        },
+        "fila_inicio": 2,
+        "tipo_archivo": "xlsx",
+        "separador_csv": ",",
+        "multi_archivos": true
+      }
+    },
+    {
+      "codigo": "ENEL",
+      "nombre": "Enel",
+      "activo": true,
+      "mapeo_sdl": {
+        "hoja": 0,
+        "columnas": {
+          "periodo": null,
+          "factor_m": "FACTOR M",
+          "valor_cop": "VALOR SDL ACT",
+          "energia_kwh": "CONSUMO ACTIVA",
+          "nivel_tension": "NIVEL TENSION",
+          "codigo_frontera": "CODIGO SIC",
+          "nombre_frontera": "NOMBRE CUENTA CONTRATO",
+          "propiedad_activos": null,
+          "valor_reactiva_cop": "VALOR SDL REAC",
+          "energia_reactiva_cap_pen": "EXCESO_REACTIVA_CAPACITIVA",
+          "energia_reactiva_ind_pen": "EXCESO_REACTIVA_INDUCTIVA"
+        },
+        "fila_inicio": 2,
+        "tipo_archivo": "xlsx",
+        "separador_csv": ",",
+        "multi_archivos": true
+      }
+    },
+    {
+      "codigo": "ENELAR",
+      "nombre": "Enelar",
+      "activo": true,
+      "mapeo_sdl": null
+    },
+    {
+      "codigo": "ENERCA",
+      "nombre": "Enerca",
+      "activo": true,
+      "mapeo_sdl": {
+        "hoja": 0,
+        "columnas": {
+          "periodo": null,
+          "factor_m": "FACTOR M",
+          "valor_cop": "CONSUMO ACTIVA LIQUIDADO",
+          "tarifa_sdl": "TARIFA SDL",
+          "energia_kwh": "TOTAL ACTIVA AENC",
+          "nivel_tension": "NT",
+          "codigo_frontera": "CODIGO SIC",
+          "nombre_frontera": "NOMBRE FRONTERA",
+          "tarifa_reactiva": "TARIFA Dm",
+          "propiedad_activos": null,
+          "valor_reactiva_cop": null,
+          "energia_reactiva_cap_pen": "EXCESO CAPACITIVA",
+          "energia_reactiva_ind_pen": "EXCESO REACTIVA"
+        },
+        "fila_inicio": 5,
+        "tipo_archivo": "xlsx",
+        "separador_csv": ","
+      }
+    },
+    {
+      "codigo": "ENERGUAVIARE",
+      "nombre": "Energuaviare",
+      "activo": true,
+      "mapeo_sdl": null
+    },
+    {
+      "codigo": "EPM",
+      "nombre": "EPM",
+      "activo": true,
+      "mapeo_sdl": {
+        "hoja": 0,
+        "columnas": {
+          "periodo": null,
+          "factor_m": null,
+          "valor_cop": "INGRESO Activa SDL($)",
+          "tarifa_sdl": "Cargo por Uso($/KWh)",
+          "energia_kwh": "ENERGÍA Activa SDL (KW)",
+          "nivel_tension": "Nivel de Tensión",
+          "codigo_frontera": "Código SIC",
+          "nombre_frontera": "Instalación",
+          "tarifa_reactiva": null,
+          "propiedad_activos": null,
+          "valor_reactiva_cop": null,
+          "energia_reactiva_cap_pen": null,
+          "energia_reactiva_ind_pen": null
+        },
+        "fila_inicio": 14,
+        "tipo_archivo": "xlsx",
+        "separador_csv": ","
+      }
+    },
+    {
+      "codigo": "ESSA",
+      "nombre": "ESSA",
+      "activo": true,
+      "mapeo_sdl": {
+        "hoja": 0,
+        "columnas": {
+          "periodo": null,
+          "factor_m": "M DIC",
+          "valor_cop": "PEAJE ACTIVA",
+          "tarifa_sdl": "TARIFA ACTIVA",
+          "energia_kwh": "DEFINITIVO",
+          "nivel_tension": "NIVEL TENSION",
+          "codigo_frontera": "CODIGO SIC",
+          "tarifa_reactiva": "TARIFA REACTIVA",
+          "propiedad_activos": "PROPIEDAD",
+          "valor_reactiva_cop": "PEAJE INDUCTIVA",
+          "energia_reactiva_cap_pen": "CAPACITIVA PENALIZADA",
+          "energia_reactiva_ind_pen": "REACTIVA PENALIZADA"
+        },
+        "fila_inicio": 5,
+        "tipo_archivo": "xlsx",
+        "separador_csv": ","
+      }
+    },
+    {
+      "codigo": "PUTUMAYO",
+      "nombre": "Putumayo",
+      "activo": true,
+      "mapeo_sdl": null
+    },
+    {
+      "codigo": "RUITOQUE",
+      "nombre": "Ruitoque",
+      "activo": true,
+      "mapeo_sdl": {
+        "hoja": 0,
+        "columnas": {
+          "periodo": null,
+          "factor_m": "Factor M",
+          "valor_cop": "Valor Activa",
+          "tarifa_sdl": "Tarifa Activa",
+          "energia_kwh": "Activa",
+          "nivel_tension": "NT",
+          "codigo_frontera": "Código SIC",
+          "tarifa_reactiva": "Tarifa Reactiva",
+          "propiedad_activos": null,
+          "valor_reactiva_cop": "Valor R_Inductiva",
+          "energia_reactiva_cap_pen": "R_Capacitiva Penalizada",
+          "energia_reactiva_ind_pen": "R_Inductiva Penalizada"
+        },
+        "fila_inicio": 7,
+        "tipo_archivo": "xlsx",
+        "separador_csv": ","
+      }
+    }
+  ]
+}

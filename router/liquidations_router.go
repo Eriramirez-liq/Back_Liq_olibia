@@ -6,6 +6,7 @@ import (
 	"bia-bills/repositories"
 	"bia-bills/services/cargos_str"
 	"bia-bills/services/proyeccion"
+	sdlOperador "bia-bills/services/sdl_operador"
 	"bia-bills/services/tarifas_sdl"
 	"bia-bills/services/tc1"
 
@@ -38,6 +39,8 @@ func RegisterLiquidations(apiPrefix *gin.RouterGroup) {
 
 	tc1Repository := repositories.NewLiquidationsTc1Repository(db)
 
+	sdlPreliqRepository := repositories.NewLiquidationsSdlPreliqRepository(db)
+
 	// ── Services ────────────────────────────────────────────────────────────
 	cargosStrService := cargos_str.NewCargosStrService(strRepository, agentsRepository)
 	tarifasSdlService := tarifas_sdl.NewTarifasSdlService(sdlRepository, agentsRepository)
@@ -46,6 +49,12 @@ func RegisterLiquidations(apiPrefix *gin.RouterGroup) {
 	// reales de TC1 y los códigos coinciden uno a uno. Entra como dato, no como
 	// dependencia del servicio.
 	tc1Service := tc1.NewTc1Service(tc1Repository, tarifas_sdl.OperatorCodes())
+
+	// SDL por Operador espera a los MISMOS operadores que TC1: se verifico el
+	// cruce del catalogo contra los 20 archivos de ejemplo y contra los mapeos
+	// rescatados de Supabase, y coinciden uno a uno.
+	sdlOperadorService := sdlOperador.NewSdlOperadorService(
+		sdlPreliqRepository, tarifas_sdl.OperatorCodes())
 
 	// Proyección compone los dos módulos ya migrados: las tarifas de SDL y los
 	// cargos de STR. No tiene repositorio propio porque no guarda nada.
@@ -56,6 +65,7 @@ func RegisterLiquidations(apiPrefix *gin.RouterGroup) {
 	cargosStrController := controllers.NewLiquidationsStrController(cargosStrService)
 	tarifasSdlController := controllers.NewLiquidationsSdlController(tarifasSdlService)
 	tc1Controller := controllers.NewLiquidationsTc1Controller(tc1Service)
+	sdlOperadorController := controllers.NewLiquidationsSdlOperadorController(sdlOperadorService)
 	proyeccionController := controllers.NewLiquidationsProyeccionController(proyeccionService)
 
 	// ── Rutas ───────────────────────────────────────────────────────────────
@@ -90,6 +100,16 @@ func RegisterLiquidations(apiPrefix *gin.RouterGroup) {
 
 	// Proyección Cargos OR: por ahora solo los precios y el valor STR. La demanda
 	// sigue en Facturación, que no está migrada.
+	// SDL por Operador: la preliquidacion que cada OR manda. Como en TC1, el
+	// archivo se parsea en el navegador y aca llegan las filas normalizadas.
+	sdlOperadorGroup := liquidationsGroup.Group("/sdl-operador")
+	sdlOperadorGroup.POST("/confirm", sdlOperadorController.Confirm)
+	sdlOperadorGroup.GET("", sdlOperadorController.Rows)
+	sdlOperadorGroup.GET("/periods", sdlOperadorController.Periods)
+	sdlOperadorGroup.GET("/loads", sdlOperadorController.Loads)
+	sdlOperadorGroup.GET("/status", sdlOperadorController.Status)
+	sdlOperadorGroup.GET("/operators", sdlOperadorController.Operators)
+
 	proyeccionGroup := liquidationsGroup.Group("/proyeccion")
 	proyeccionGroup.GET("/prices", proyeccionController.Prices)
 }
